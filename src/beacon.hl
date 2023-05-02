@@ -1,0 +1,10 @@
+minting beacon
+
+enum Redeemer { 
+    Init 
+}
+
+func main(_, _) -> Bool {
+    print("beacon minting");
+    true
+}

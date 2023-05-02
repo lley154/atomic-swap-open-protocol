@@ -1,0 +1,23 @@
+spending swap
+
+struct Price {
+    askedAsset: Int
+    offeredAsset: Int
+}
+
+struct Datum {
+    swapPrice: Price
+    swapBeacon: Value
+}
+
+enum Redeemer {
+    Swap
+    Close { 
+        pkhBA: ByteArray 
+    }
+}
+
+func main(_, _, _) -> Bool {
+    print("swap contract");
+    true
+}
