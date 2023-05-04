@@ -1,5 +1,4 @@
 import { promises as fs } from 'fs';
-//import { assert } from 'assert';
 
 import {
   Address,
@@ -26,8 +25,8 @@ const networkParams = new NetworkParams(JSON.parse(networkParamsFile.toString())
 
 // Set the Helios compiler optimizer flag
 let optimize = false;
-const minAda = BigInt(2000000);  // minimum lovelace needed to send an NFT
-const swapAmt = BigInt(100000000);  // minimum lovelace needed to send an NFT
+const minAda = BigInt(2_000_000);  // minimum lovelace needed to send an NFT
+const swapAmt = BigInt(100_000_000);  // minimum lovelace needed to send an NFT
 
 // Set dummy tokenized product
 const productMPH = MintingPolicyHash.fromHex(
@@ -51,7 +50,7 @@ const beaconToken = [[textToBytes("Beacon Token"), BigInt(1)]];
 const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
 
 // Create seller wallet - we add 10ADA to start
-const seller = network.createWallet(BigInt(10000000));
+const seller = network.createWallet(BigInt(10_000_000));
 
 // Create product tokens in seller wallet
 const productAsset = new Assets();
@@ -65,7 +64,7 @@ productAsset.addComponent(
 network.createUtxo(seller, minAda, productAsset);
 
 // Create buyer wallet - we add 10ADA to start
-const buyer = network.createWallet(BigInt(10000000));
+const buyer = network.createWallet(BigInt(10_000_000));
 
 // Create buyer wallet - add 100ADA for swap
 network.createUtxo(buyer, swapAmt);
@@ -193,6 +192,23 @@ const calcQtyToBuy = async (utxo, spendAmt) => {
 }
 
 /**
+ * Return the askedAsset and offeredAsset inline Datum info.
+ * @package
+ * @param {UTxO, number} utxo
+ * @returns {{number, number}} {askedAsset, offeredAsset}
+ */
+const getDatumInfo = async (utxo) => {
+
+    return {
+        askedAsset: utxo.origOutput.datum.data.list[0].int,
+        offeredAsset: utxo.origOutput.datum.data.list[1].int
+    }
+}
+
+
+
+
+/**
  * Initialize the swap smart contract and mint a beacon token.
  * @package
  * @param {number} askedAsset
@@ -216,12 +232,12 @@ const initSwap = async (askedAsset, offeredAsset) => {
         // Add the Seller UTXOs as inputs
         tx.addInputs(utxosSeller);
 
-        // Add the script as a witness to the transaction
+        // Add the beacon minting script as a witness to the transaction
         tx.attachScript(beaconCompiledProgram);
 
         // Create an Beacon Minting Init Redeemer because we must always send a Redeemer with
         // a plutus script transaction even if we don't actually use it.
-        const beaconRedeemer = (new beaconProgram.types.Redeemer.Init())._toUplcData();
+        const beaconRedeemer = (new beaconProgram.types.Redeemer.Mint())._toUplcData();
 
         // Add the mint to the tx
         tx.mintTokens(
@@ -312,24 +328,27 @@ const updateSwap = async (askedAsset, offeredAsset) => {
         
         // Get the UTXO that has the swap datum
         const swapUtxo = await getSwapUTXO();
-        tx.addInput(swapUtxo, swapRedeemer);   
+        tx.addInput(swapUtxo, swapRedeemer);  
         
+        // Get the qty of the offeredAsset from the datum
+        const datumInfo = await getDatumInfo(swapUtxo);
+
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
             BigInt(askedAsset),
-            BigInt(offeredAsset)
+            BigInt(datumInfo.offeredAsset) + BigInt(offeredAsset)
           )
 
         // Create product asset to be offered
-        const updateProductAsset = new Assets();
-        updateProductAsset.addComponent(
+        const productAsset = new Assets();
+        productAsset.addComponent(
             productMPH,
             productTN,
-            BigInt(offeredAsset)
+            BigInt(datumInfo.offeredAsset) + BigInt(offeredAsset)
         );
-        // Build the output that includes the remaining product, beacon and 
+        // Build the output that includes the update product offered, beacon and 
         // swap datum
-        const swapValue = new Value(minAda, updateProductAsset).add(new Value(BigInt(0), beaconAsset));
+        const swapValue = new Value(minAda, productAsset).add(new Value(BigInt(0), beaconAsset));
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgram.validatorHash),
             swapValue,
@@ -408,7 +427,7 @@ const assetSwap = async (spendAmt) => {
             BigInt(productToBuy.buyPrice),  // askedAsset
             BigInt(productToBuy.remQty)     // offeredAsset
           )
-
+        
         // Create the output with the swap datum to the swap script address
         const remainderProductAsset = new Assets();
         remainderProductAsset.addComponent(
@@ -470,7 +489,105 @@ const assetSwap = async (spendAmt) => {
 }
 
 
-await initSwap(15000000, 5);
-await updateSwap(20000000, 10);
-await assetSwap(45000000);
+/**
+ * Close a swap position
+ * @package
+ */
+const closeSwap = async () => {
+
+    try {
+        console.log("");
+        console.log("************ EXECUTE CLOSE SWAP ************");
+        console.log("**************** PRE-TEST ******************");
+        
+        // Tick the network on 10 more slots,
+        network.tick(BigInt(10));
+        await showWalletUTXOs();
+        await showScriptUTXOs();
+
+        // Get the UTxOs in Seller Wallet
+        const utxosSeller = await network.getUtxos(seller.address);
+
+        // Start building the transaction
+        const tx = new Tx();
+
+        // Add the Seller UTXOs as inputs
+        tx.addInputs(utxosSeller);
+
+        // Add the script as a witness to the transaction
+        tx.attachScript(swapCompiledProgram);
+
+        // Create the swap redeemer
+        const swapRedeemer = (new swapProgram.types.Redeemer.Close())._toUplcData();
+        
+        // Get the UTXO that has the swap datum
+        const swapUtxo = await getSwapUTXO();
+        tx.addInput(swapUtxo, swapRedeemer);   
+
+        // Add the beacon minting script as a witness to the transaction
+        tx.attachScript(beaconCompiledProgram);
+
+        // Create an Beacon Minting Init Redeemer because we must always send a Redeemer with
+        // a plutus script transaction even if we don't actually use it.
+        const beaconRedeemer = (new beaconProgram.types.Redeemer.Burn())._toUplcData();
+
+        // Create beacon token for burning
+        const beaconToken = [[textToBytes("Beacon Token"), BigInt(-1)]];
+
+        // Add the mint to the tx
+        tx.mintTokens(
+            beaconMPH,
+            beaconToken,
+            beaconRedeemer
+        )
+
+        // Get the qty of the offeredAsset from the datum
+        const datumInfo = await getDatumInfo(swapUtxo);
+
+        // Create product asset to be retrieved
+        const productAsset = new Assets();
+        productAsset.addComponent(
+            productMPH,
+            productTN,
+            BigInt(datumInfo.offeredAsset)
+        );
+        // Build the output to send back to the seller the product
+        // token locked at the swap address
+        const swapValue = new Value(minAda, productAsset);
+        tx.addOutput(new TxOutput(
+            seller.address,
+            swapValue
+        ));
+
+        console.log("");
+        console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
+        await tx.finalize(networkParams, seller.address, utxosSeller);
+
+        console.log("");
+        console.log("************ SUBMIT TX ************");
+        // Submit Tx to the network
+        const txId = await network.submitTx(tx);
+        console.log("TxId", txId.dump());
+
+        // Tick the network on 10 more slots,
+        network.tick(BigInt(10));
+
+        console.log("");
+        console.log("************ POST-TEST ************");
+        await showWalletUTXOs();
+        await showScriptUTXOs();
+
+        return true;
+
+    } catch (err) {
+        console.error("updateSwap tx failed", err);
+        return false;
+    }
+}
+
+
+await initSwap(15_000_000, 5);      // Initialize with price of 15 Ada and 5 product tokens
+await updateSwap(10_000_000, 5);    // Change price to 10 Ada and add 5 more product tokens
+await assetSwap(25_000_000);        // Swap 25 Ada and get as many product tokens as possible
+await closeSwap();
 

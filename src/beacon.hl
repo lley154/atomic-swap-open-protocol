@@ -1,7 +1,8 @@
 minting beacon
 
 enum Redeemer { 
-    Init 
+    Mint
+    Burn 
 }
 
 func main(_, _) -> Bool {
