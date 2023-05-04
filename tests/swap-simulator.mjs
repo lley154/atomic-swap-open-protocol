@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+//import { assert } from 'assert';
 
 import {
   Address,
@@ -12,28 +13,27 @@ import {
   textToBytes,
   TxOutput,
   Tx,
+  UTxO,
 } from "@hyperionbt/helios";
 
 
 // Create an Instance of NetworkEmulator
 const network = new NetworkEmulator();
 
-// Set the Helios compiler optimizer flag
-let optimize = false;
-const minAda = BigInt(2000000);  // minimum lovelace needed to send an NFT
-const swapAmt = BigInt(100000000);  // minimum lovelace needed to send an NFT
-const productMPH = MintingPolicyHash.fromHex(
-    '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
-    );
-const productTN =  Array.from(new TextEncoder().encode('Product Asset Name'));
-
-
-
-
 // Network Parameters
 const networkParamsFile = await fs.readFile('./src/preprod.json', 'utf8');
 const networkParams = new NetworkParams(JSON.parse(networkParamsFile.toString()));
 
+// Set the Helios compiler optimizer flag
+let optimize = false;
+const minAda = BigInt(2000000);  // minimum lovelace needed to send an NFT
+const swapAmt = BigInt(100000000);  // minimum lovelace needed to send an NFT
+
+// Set dummy tokenized product
+const productMPH = MintingPolicyHash.fromHex(
+    '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
+    );
+const productTN =  Array.from(new TextEncoder().encode('Product Asset Name'));
 
 // Compile the swap script
 const swapScript = await fs.readFile('./src/swap.hl', 'utf8');
@@ -53,6 +53,17 @@ const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
 // Create seller wallet - we add 10ADA to start
 const seller = network.createWallet(BigInt(10000000));
 
+// Create product tokens in seller wallet
+const productAsset = new Assets();
+productAsset.addComponent(
+    productMPH,
+    productTN,
+    BigInt(10)
+);
+
+// Add Product Token to the seller wallet
+network.createUtxo(seller, minAda, productAsset);
+
 // Create buyer wallet - we add 10ADA to start
 const buyer = network.createWallet(BigInt(10000000));
 
@@ -64,6 +75,22 @@ network.createUtxo(buyer, swapAmt);
 network.tick(BigInt(10));
 
 
+/**
+ * Throws an error if 'cond' is false.
+ * @package
+ * @param {boolean} cond 
+ * @param {string} msg 
+ */
+function assert(cond, msg = "assertion failed") {
+	if (!cond) {
+		throw new Error(msg);
+	}
+}
+
+/**
+ * Prints out the UTXOs for the buyer and seller wallets
+ * @package
+ */
 const showWalletUTXOs = async () => {
 
      // Get the UTxOs in Buyer & Seller Wallets
@@ -86,6 +113,10 @@ const showWalletUTXOs = async () => {
      }
 }
 
+/**
+ * Prints out the UTXOs at the swap script address
+ * @package
+ */
 const showScriptUTXOs = async () => {
 
     const swapUtxos = await network.getUtxos(Address.fromHashes(swapCompiledProgram.validatorHash));
@@ -101,7 +132,12 @@ const showScriptUTXOs = async () => {
     }
 }
 
-
+/**
+ * Get the UTXO at the swap address which contains the beacon token
+ * @package
+ * @param {} 
+ * @returns {UTxO} utxo
+ */
 const getSwapUTXO = async () => {
 
     const swapUtxos = await network.getUtxos(Address.fromHashes(swapCompiledProgram.validatorHash));
@@ -114,6 +150,14 @@ const getSwapUTXO = async () => {
     }
 }
 
+/**
+ * Determine the quantity of a product a buyer can purchase
+ * given the amount he is willing to pay.
+ * @package
+ * @param {UTxO, number} utxo
+ * @param {UTxO, number} utxospendAmt 
+ * @returns {{number, number, number, number}} {buyPrice, buyQty, remQty, chgAmt}
+ */
 const calcQtyToBuy = async (utxo, spendAmt) => {
 
     if (spendAmt <= 0) {
@@ -125,7 +169,9 @@ const calcQtyToBuy = async (utxo, spendAmt) => {
     const price = utxo.origOutput.datum.data.list[0].int;
     const qty = utxo.origOutput.datum.data.list[1].int;
     const diff = spendAmt - price * qty;
-    const unitAmt = spendAmt / price;  // TODO assert price is not zero
+
+    assert(price > 0); // price must be greater than zero
+    const unitAmt = spendAmt / price;  
     if (unitAmt < 1) {
         throw console.error("calcRemainder: insufficient funds")
     } else if (diff >= 0) { 
@@ -146,25 +192,19 @@ const calcQtyToBuy = async (utxo, spendAmt) => {
     }
 }
 
-
-const initSwap = async () => {
+/**
+ * Initialize the swap smart contract and mint a beacon token.
+ * @package
+ * @param {number} askedAsset
+ * @param {number} offeredAsset
+ */
+const initSwap = async (askedAsset, offeredAsset) => {
 
     try {
-        // Create Product Token & Qty
-        const productAsset = new Assets();
-        productAsset.addComponent(
-            productMPH,
-            productTN,
-            BigInt(5)
-        );
-
-        // Add Product Token to the seller wallet
-        network.createUtxo(seller, minAda, productAsset);
-        network.tick(BigInt(10));
 
         console.log("");
         console.log("************ INIT SWAP ************");
-        console.log("************ PRE-TEST ************");
+        console.log("************ PRE-TEST *************");
         await showWalletUTXOs();
         
         // Now we are able to get the UTxOs in Buyer & Seller Wallets
@@ -190,12 +230,18 @@ const initSwap = async () => {
             beaconRedeemer
         )
         // Construct the swap datum
-        const askedAsset = 15000000 // 15 Ada asked for  
-        const offeredAsset = 5;  // 5 product assets for sale
         const swapDatum = new (swapProgram.types.Datum)(
             askedAsset,
             offeredAsset
           )
+
+        // Create product asset to be offered
+        const productAsset = new Assets();
+        productAsset.addComponent(
+            productMPH,
+            productTN,
+            BigInt(offeredAsset)
+        );
 
         // Attach the output with product asset, beacon token
         // and the swap datum to the swap script address
@@ -232,13 +278,102 @@ const initSwap = async () => {
     }
 }
 
-
-const executeSimpleSwap = async (spendAmt) => {
+/**
+ * Execute a swap with a given amount
+ * @package
+ * @param {number} spendAmt
+ */
+const updateSwap = async (askedAsset, offeredAsset) => {
 
     try {
         console.log("");
-        console.log("************ EXECUTE SIMPLE SWAP ************");
-        console.log("************ PRE-TEST ************");
+        console.log("************ EXECUTE UPDATE SWAP ************");
+        console.log("***************** PRE-TEST ******************");
+        
+        // Tick the network on 10 more slots,
+        network.tick(BigInt(10));
+        await showWalletUTXOs();
+        await showScriptUTXOs();
+
+        // Get the UTxOs in Seller Wallet
+        const utxosSeller = await network.getUtxos(seller.address);
+
+        // Start building the transaction
+        const tx = new Tx();
+
+        // Add the Seller UTXOs as inputs
+        tx.addInputs(utxosSeller);
+
+        // Add the script as a witness to the transaction
+        tx.attachScript(swapCompiledProgram);
+
+        // Create the swap redeemer
+        const swapRedeemer = (new swapProgram.types.Redeemer.Update())._toUplcData();
+        
+        // Get the UTXO that has the swap datum
+        const swapUtxo = await getSwapUTXO();
+        tx.addInput(swapUtxo, swapRedeemer);   
+        
+        // Construct the swap datum
+        const swapDatum = new (swapProgram.types.Datum)(
+            BigInt(askedAsset),
+            BigInt(offeredAsset)
+          )
+
+        // Create product asset to be offered
+        const updateProductAsset = new Assets();
+        updateProductAsset.addComponent(
+            productMPH,
+            productTN,
+            BigInt(offeredAsset)
+        );
+        // Build the output that includes the remaining product, beacon and 
+        // swap datum
+        const swapValue = new Value(minAda, updateProductAsset).add(new Value(BigInt(0), beaconAsset));
+        tx.addOutput(new TxOutput(
+            Address.fromHashes(swapCompiledProgram.validatorHash),
+            swapValue,
+            Datum.inline(swapDatum._toUplcData())
+        ));
+
+        console.log("");
+        console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
+        await tx.finalize(networkParams, seller.address, utxosSeller);
+
+        console.log("");
+        console.log("************ SUBMIT TX ************");
+        // Submit Tx to the network
+        const txId = await network.submitTx(tx);
+        console.log("TxId", txId.dump());
+
+        // Tick the network on 10 more slots,
+        network.tick(BigInt(10));
+
+        console.log("");
+        console.log("************ POST-TEST ************");
+        await showWalletUTXOs();
+        await showScriptUTXOs();
+
+        return true;
+
+    } catch (err) {
+        console.error("updateSwap tx failed", err);
+        return false;
+    }
+}
+
+
+/**
+ * Execute a swap with a given amount
+ * @package
+ * @param {number} spendAmt
+ */
+const assetSwap = async (spendAmt) => {
+
+    try {
+        console.log("");
+        console.log("************ EXECUTE ASSET SWAP ************");
+        console.log("***************** PRE-TEST *****************");
 
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
@@ -270,8 +405,8 @@ const executeSimpleSwap = async (spendAmt) => {
 
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
-            BigInt(productToBuy.buyPrice),
-            BigInt(productToBuy.remQty)
+            BigInt(productToBuy.buyPrice),  // askedAsset
+            BigInt(productToBuy.remQty)     // offeredAsset
           )
 
         // Create the output with the swap datum to the swap script address
@@ -329,10 +464,13 @@ const executeSimpleSwap = async (spendAmt) => {
         return true;
 
     } catch (err) {
-        console.error("executeSwap tx failed", err);
+        console.error("assetSwap tx failed", err);
         return false;
     }
 }
 
-await initSwap();
-await executeSimpleSwap(35000000);
+
+await initSwap(15000000, 5);
+await updateSwap(20000000, 10);
+await assetSwap(45000000);
+

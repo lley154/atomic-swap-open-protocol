@@ -1,16 +1,14 @@
 spending swap
 
-
 struct Datum {
     askedAsset: Int
     offeredAsset: Int
 }
 
 enum Redeemer {
+    Close 
     Swap
-    Close { 
-        pkhBA: ByteArray 
-    }
+    Update 
 }
 
 func main(_, _, _) -> Bool {
