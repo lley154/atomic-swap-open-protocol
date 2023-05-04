@@ -22,6 +22,12 @@ const network = new NetworkEmulator();
 let optimize = false;
 const minAda = BigInt(2000000);  // minimum lovelace needed to send an NFT
 const swapAmt = BigInt(100000000);  // minimum lovelace needed to send an NFT
+const productMPH = MintingPolicyHash.fromHex(
+    '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
+    );
+const productTN =  Array.from(new TextEncoder().encode('Product Asset Name'));
+
+
 
 
 // Network Parameters
@@ -39,6 +45,10 @@ const beaconScript = await fs.readFile('./src/beacon.hl', 'utf8');
 const beaconProgram = Program.new(beaconScript);
 const beaconCompiledProgram = beaconProgram.compile(optimize);
 const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
+
+// Construct the beacon asset
+const beaconToken = [[textToBytes("Beacon Token"), BigInt(1)]];
+const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
 
 // Create seller wallet - we add 10ADA to start
 const seller = network.createWallet(BigInt(10000000));
@@ -96,39 +106,43 @@ const getSwapUTXO = async () => {
 
     const swapUtxos = await network.getUtxos(Address.fromHashes(swapCompiledProgram.validatorHash));
     for (const utxo of swapUtxos) {
+        // only one UTXO with beacon token should exist
         if (utxo.value.assets.mintingPolicies.includes(beaconMPH)) { 
-            console.log("getSwapUTXO: beacon found");
-            console.log("getSwapUTXO: ", utxo.origOutput.datum.data.list[0].int);
+            console.log("getSwapUTXO: UTXO with beacon found");
             return utxo;
         }
     }
 }
 
-const calcAmtToBuy = async (utxo, spendAmt) => {
+const calcQtyToBuy = async (utxo, spendAmt) => {
 
     if (spendAmt <= 0) {
         throw console.error("calcRemainder: spendAmt can't be negative");
     } 
     var qtyToBuy;
     var qtyRemainder;
+    var changeAmt;
     const price = utxo.origOutput.datum.data.list[0].int;
     const qty = utxo.origOutput.datum.data.list[1].int;
     const diff = spendAmt - price * qty;
-    const unitAmt = spendAmt / price;
-    if (diff >= 0) { 
+    const unitAmt = spendAmt / price;  // TODO assert price is not zero
+    if (unitAmt < 1) {
+        throw console.error("calcRemainder: insufficient funds")
+    } else if (diff >= 0) { 
         qtyToBuy = qty;  // can purchase all available qty
         qtyRemainder = 0;
-    } else if (unitAmt < 1) {
-        throw console.error("calcRemainder: insufficient funds")
+        changeAmt = spendAmt - qtyToBuy * price; // return the change to the buyer
     } else {
         qtyToBuy = unitAmt; 
         qtyRemainder = qty - unitAmt;  // calc the remaining qty at the utxo
+        changeAmt = spendAmt - qtyToBuy * price; // return the change to the buyer
     }
 
     return { 
         buyPrice: price,
         buyQty: qtyToBuy,
-        remQty: qtyRemainder
+        remQty: qtyRemainder,
+        chgAmt: changeAmt
     }
 }
 
@@ -136,13 +150,11 @@ const calcAmtToBuy = async (utxo, spendAmt) => {
 const initSwap = async () => {
 
     try {
-        // Create a Product Token
+        // Create Product Token & Qty
         const productAsset = new Assets();
         productAsset.addComponent(
-            MintingPolicyHash.fromHex(
-            '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
-            ),
-            Array.from(new TextEncoder().encode('Product Asset Name')),
+            productMPH,
+            productTN,
             BigInt(5)
         );
 
@@ -171,10 +183,6 @@ const initSwap = async () => {
         // a plutus script transaction even if we don't actually use it.
         const beaconRedeemer = (new beaconProgram.types.Redeemer.Init())._toUplcData();
 
-        // Construct the beacon that we will want to send as an output
-        const beaconToken = [[textToBytes("Becaon Token"), BigInt(1)]];
-        const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
-        
         // Add the mint to the tx
         tx.mintTokens(
             beaconMPH,
@@ -199,7 +207,7 @@ const initSwap = async () => {
         ));
 
         console.log("");
-        console.log("************ EXECUTE SMART CONTRACT ************");
+        console.log("************ EXECUTE BEACON MINTING CONTRACT ************");
         await tx.finalize(networkParams, seller.address, utxosSeller);
 
         console.log("");
@@ -256,13 +264,9 @@ const executeSimpleSwap = async (spendAmt) => {
         const swapUtxo = await getSwapUTXO();
         tx.addInput(swapUtxo, swapRedeemer);   
         
-        // Construct the beacon asset
-        const beaconToken = [[textToBytes("Becaon Token"), BigInt(1)]];
-        const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
-
         // Calc the amount of products remaining
         //const remainderProductAmt = await calcRemainder(swapUtxo, BigInt(spendAmt));
-        const productToBuy = await calcAmtToBuy(swapUtxo, BigInt(spendAmt));
+        const productToBuy = await calcQtyToBuy(swapUtxo, BigInt(spendAmt));
 
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
@@ -273,10 +277,8 @@ const executeSimpleSwap = async (spendAmt) => {
         // Create the output with the swap datum to the swap script address
         const remainderProductAsset = new Assets();
         remainderProductAsset.addComponent(
-            MintingPolicyHash.fromHex(
-            '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
-            ),
-            Array.from(new TextEncoder().encode('Product Asset Name')),
+            productMPH,
+            productTN,
             BigInt(productToBuy.remQty)
         );
         // Build the output that includes the remaining product, beacon and 
@@ -291,25 +293,23 @@ const executeSimpleSwap = async (spendAmt) => {
         // Create the output to send the askedAsset to the seller address
         tx.addOutput(new TxOutput(
             seller.address,
-            new Value(BigInt(spendAmt))
+            new Value(BigInt(spendAmt) - BigInt(productToBuy.chgAmt))
         ));
 
         // Creat the output for the product asset that was purchased to the buyer address
         const buyProductAsset = new Assets();
         buyProductAsset.addComponent(
-            MintingPolicyHash.fromHex(
-            '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
-            ),
-            Array.from(new TextEncoder().encode('Product Asset Name')),
+            productMPH,
+            productTN,
             BigInt(productToBuy.buyQty)
         );
         tx.addOutput(new TxOutput(
             buyer.address,
-            new Value(minAda, buyProductAsset))
+            new Value(minAda + BigInt(productToBuy.chgAmt), buyProductAsset))
         );
 
         console.log("");
-        console.log("************ EXECUTE SMART CONTRACT ************");
+        console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
         await tx.finalize(networkParams, buyer.address, utxosBuyer);
 
         console.log("");
@@ -334,6 +334,5 @@ const executeSimpleSwap = async (spendAmt) => {
     }
 }
 
-
 await initSwap();
-await executeSimpleSwap(15000000);
+await executeSimpleSwap(35000000);
