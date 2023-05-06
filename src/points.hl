@@ -1,0 +1,11 @@
+minting points
+
+enum Redeemer { 
+    Mint
+    Burn 
+}
+
+func main(_, _) -> Bool {
+    print("points minting");
+    true
+}

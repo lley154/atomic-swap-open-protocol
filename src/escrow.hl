@@ -1,0 +1,21 @@
+spending escrow
+
+struct Datum {
+    orderId: ByteArray
+    buyerPKH: PubKeyHash
+    depositValue: Value
+    sellerPKH: PubKeyHash
+    orderValue: Value
+    productValue: Value
+}
+
+enum Redeemer {
+    Approve
+    Refund
+    Process 
+}
+
+func main(_, _, _) -> Bool {
+    print("escrow contract");
+    true
+}
