@@ -304,7 +304,6 @@ const getEscrowDatumInfo = async (utxo) => {
     return datumInfo
 }
 
-
 /**
  * Initialize the swap smart contract and mint a beacon token.
  * @package
@@ -368,6 +367,8 @@ const initSwap = async (askedAsset, offeredAsset) => {
         console.log("");
         console.log("************ EXECUTE BEACON MINTING CONTRACT ************");
         await tx.finalize(networkParams, seller.address, utxosSeller);
+        console.log("Tx Fee", tx.body.fee);
+        console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
 
         console.log("");
         console.log("************ SUBMIT TX ************");
@@ -455,6 +456,8 @@ const updateSwap = async (askedAsset, offeredAsset) => {
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
         await tx.finalize(networkParams, seller.address, utxosSeller);
+        console.log("Tx Fee", tx.body.fee);
+        console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
 
         // Sign tx with sellers signature
         const signatures = await seller.signTx(tx);
@@ -499,6 +502,114 @@ const assetSwap = async (spendAmt) => {
         await showWalletUTXOs();
         await showScriptUTXOs();
         
+        // Now we are able to get the UTxOs in Buyer & Seller Wallets
+        const utxosBuyer = await network.getUtxos(buyer.address);
+
+        // Start building the transaction
+        const tx = new Tx();
+
+        // Add the Buyer UTXOs as inputs
+        tx.addInputs(utxosBuyer);
+
+        // Add the script as a witness to the transaction
+        tx.attachScript(swapCompiledProgram);
+
+        // Create the swap redeemer
+        const swapRedeemer = (new swapProgram.types.Redeemer.Swap())._toUplcData();
+        
+        // Get the UTXO that has the swap datum
+        const swapUtxo = await getSwapUTXO();
+        tx.addInput(swapUtxo, swapRedeemer);   
+        
+        // Calc the amount of products remaining
+        //const remainderProductAmt = await calcRemainder(swapUtxo, BigInt(spendAmt));
+        const productToBuy = await calcQtyToBuy(swapUtxo, BigInt(spendAmt));
+
+        // Construct the swap datum
+        const swapDatum = new (swapProgram.types.Datum)(
+            BigInt(productToBuy.buyPrice),  // askedAsset
+            BigInt(productToBuy.remQty)     // offeredAsset
+          )
+        
+        // Create the output with the swap datum to the swap script address
+        const remainderProductAsset = new Assets();
+        remainderProductAsset.addComponent(
+            productMPH,
+            productTN,
+            BigInt(productToBuy.remQty)
+        );
+        // Build the output that includes the remaining product, beacon and 
+        // swap datum
+        const swapValue = new Value(minAda, remainderProductAsset).add(new Value(BigInt(0), beaconAsset));
+        tx.addOutput(new TxOutput(
+            Address.fromHashes(swapCompiledProgram.validatorHash),
+            swapValue,
+            Datum.inline(swapDatum._toUplcData())
+        ));
+
+        // Create the output to send the askedAsset to the seller address
+        tx.addOutput(new TxOutput(
+            seller.address,
+            new Value(BigInt(spendAmt) - BigInt(productToBuy.chgAmt))
+        ));
+
+        // Creat the output for the product asset that was purchased to the buyer address
+        const buyProductAsset = new Assets();
+        buyProductAsset.addComponent(
+            productMPH,
+            productTN,
+            BigInt(productToBuy.buyQty)
+        );
+        tx.addOutput(new TxOutput(
+            buyer.address,
+            new Value(minAda + BigInt(productToBuy.chgAmt), buyProductAsset))
+        );
+
+        console.log("");
+        console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
+        await tx.finalize(networkParams, buyer.address, utxosBuyer);
+        console.log("Tx Fee", tx.body.fee);
+        console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
+
+        console.log("");
+        console.log("************ SUBMIT TX ************");
+        // Submit Tx to the network
+        const txId = await network.submitTx(tx);
+        console.log("TxId", txId.dump());
+
+        // Tick the network on 10 more slots,
+        network.tick(BigInt(10));
+
+        console.log("");
+        console.log("************ POST-TEST ************");
+        await showWalletUTXOs();
+        await showScriptUTXOs();
+
+        return true;
+
+    } catch (err) {
+        console.error("assetSwap tx failed", err);
+        return false;
+    }
+}
+
+/**
+ * Execute a swap with a given amount using an escrow script
+ * @package
+ * @param {number} spendAmt
+ */
+const assetSwapEscrow = async (spendAmt) => {
+
+    try {
+        console.log("");
+        console.log("******* EXECUTE ASSET SWAP ESCROW **********");
+        console.log("***************** PRE-TEST *****************");
+
+        // Tick the network on 10 more slots,
+        network.tick(BigInt(10));
+        await showWalletUTXOs();
+        await showScriptUTXOs();
+        
         // Get the UTxOs in Buyer Wallets
         const utxosBuyer = await network.getUtxos(buyer.address);
 
@@ -534,9 +645,6 @@ const assetSwap = async (spendAmt) => {
             productTN,
             BigInt(productToBuy.remQty)
         );
-
-        console.log("assetSwap: remainderProductAsset", remainderProductAsset.mintingPolicies);
-
         // Build the output that includes the remaining product, beacon and 
         // swap datum
         const swapValue = new Value(minAda, remainderProductAsset).add(new Value(BigInt(0), beaconAsset));
@@ -547,17 +655,16 @@ const assetSwap = async (spendAmt) => {
         ));
 
         // Create the bought product asset
-        const boughtProductAsset = new Assets();
-        boughtProductAsset.addComponent(
+        const buyProductAsset = new Assets();
+        buyProductAsset.addComponent(
             productMPH,
             productTN,
             BigInt(productToBuy.buyQty)
         );
-        console.log("assetSwap: boughtProductAsset", boughtProductAsset.mintingPolicies);
 
         // Construct the values to lock at the escrow contract
         const orderValue = new Value(BigInt(spendAmt) - BigInt(productToBuy.chgAmt));
-        const productValue = new Value(BigInt(0), boughtProductAsset);
+        const productValue = new Value(BigInt(0), buyProductAsset);
         const depositValue = new Value(deposit);
         
         // Use timestamp for order id for now
@@ -592,6 +699,8 @@ const assetSwap = async (spendAmt) => {
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
         await tx.finalize(networkParams, buyer.address, utxosBuyer);
+        console.log("Tx Fee", tx.body.fee);
+        console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
 
         // Sign tx with buyers signature
         const signatures = await buyer.signTx(tx);
@@ -715,6 +824,8 @@ const approveEscrow = async (orderId) => {
         console.log("");
         console.log("************ EXECUTE ESCROW APPROVE CONTRACT ************");
         await tx.finalize(networkParams, seller.address, utxosSeller);
+        console.log("Tx Fee", tx.body.fee);
+        console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
 
         // Sign tx with sellers signature
         const sellerSignatures = await seller.signTx(tx);
@@ -820,6 +931,8 @@ const closeSwap = async () => {
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
         await tx.finalize(networkParams, seller.address, utxosSeller);
+        console.log("Tx Fee", tx.body.fee);
+        console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
 
         // Sign tx with sellers signature
         const signatures = await seller.signTx(tx);
@@ -849,7 +962,8 @@ const closeSwap = async () => {
 
 await initSwap(15_000_000, 5);                  // Initialize with price of 15 Ada and 5 product tokens
 await updateSwap(10_000_000, 5);                // Change price to 10 Ada and add 5 more product tokens
-const order_id = await assetSwap(25_000_000);   // Swap 25 Ada and get as many product tokens as possible
-await approveEscrow(order_id);                  // Approve the escrow for a given order id
+await assetSwap(25_000_000);                    // Swap 25 Ada and get as many product tokens as possible
+//const order_id = await assetSwapEscrow(25_000_000);   // Swap 25 Ada and get as many product tokens as possible
+//await approveEscrow(order_id);                  // Approve the escrow for a given order id
 await closeSwap();                              // Close the swap position
 
