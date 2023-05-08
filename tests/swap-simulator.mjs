@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import {
   Address,
   Assets, 
+  bytesToHex,
   Datum,
   MintingPolicyHash,
   NetworkEmulator,
@@ -34,11 +35,6 @@ const minChangeAda = BigInt(1_000_000);  // minimum lovelace needed to send back
 const initSwapAmt = BigInt(100_000_000); // initial Ada for swap
 const deposit = BigInt(5_000_000)        // 5 Ada deposit for escrow
 
-// Set dummy tokenized product
-const productMPH = MintingPolicyHash.fromHex(
-    '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
-    );
-const productTN =  Array.from(new TextEncoder().encode('Product Asset Name'));
 
 // Compile the swap script
 const swapScript = await fs.readFile('./src/swap.hl', 'utf8');
@@ -59,6 +55,7 @@ const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
 // Construct the Beacon asset
 const beaconToken = [[textToBytes("Beacon Token"), BigInt(1)]];
 const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
+const beaconValue = new Value(BigInt(0), beaconAsset);
 
 // Compile the Points minting script
 const pointsScript = await fs.readFile('./src/points.hl', 'utf8');
@@ -68,7 +65,6 @@ const pointsMPH = pointsCompiledProgram.mintingPolicyHash;
 
 // Construct the Points asset
 const pointsToken = [[textToBytes("Points Token"), BigInt(1)]];
-//const pointsAsset = new Assets([[pointsMPH, pointsToken]]);
 const pointsTN =  Array.from(new TextEncoder().encode('Points Token'));
 
 // Compile the Rewards minting script
@@ -79,11 +75,16 @@ const rewardsMPH = rewardsCompiledProgram.mintingPolicyHash;
 
 // Construct the Rewards asset
 const rewardsToken = [[textToBytes("Rewards Token"), BigInt(1)]];
-//const rewardsAsset = new Assets([[rewardsMPH, rewardsToken]]);
 const rewardsTN =  Array.from(new TextEncoder().encode('Rewards Token'));
 
 // Create seller wallet - we add 10ADA to start
 const seller = network.createWallet(BigInt(10_000_000));
+
+// Create product token to buy
+const productMPH = MintingPolicyHash.fromHex(
+    '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
+    );
+const productTN =  Array.from(new TextEncoder().encode('Product Asset Name'));
 
 // Create product tokens in seller wallet
 const productAsset = new Assets();
@@ -221,32 +222,102 @@ const getEscrowUTXO = async (orderId, buyerPKH, sellerPKH) => {
  * given the amount he is willing to pay.
  * @package
  * @param {UTxO, number} utxo
- * @param {UTxO, number} utxospendAmt 
- * @returns {{buyPrice, buyQty, remQty, chgAmt}} 
+ * @param {UTxO, Value} swapAskedAssetValue
+ * @returns {{askedAssetVal: Value, 
+ *            buyAssetVal: Value,
+ *            offeredAssetVal: Value,
+ *            changeAssetVal: Value}} 
  */
-const calcQtyToBuy = async (utxo, spendAmt) => {
+const calcOrderDetails = async (utxo, swapAskedAssetValue) => {
 
-    if (spendAmt <= 0) {
-        throw console.error("calcRemainder: spendAmt can't be negative");
-    } 
+    // swapAskedAssetValue can't have any negative values
+    swapAskedAssetValue.assertAllPositive();
+
+    // Get Values from the swap datum
+    const askedAssetValue = Value.fromUplcData(utxo.origOutput.datum.data.list[0]);
+    const offeredAssetValue = Value.fromUplcData(utxo.origOutput.datum.data.list[1]);
+
+    const askedAssetMP = askedAssetValue.assets.mintingPolicies;
+    var askedAssetMPH;
+    var askedAssetTN;
+    var askedAssetQty;
+
+    // Check if the askedAsset is lovelace
+    if (askedAssetMP.length == 0) {
+        askedAssetMPH = askedAssetValue.assets.mintingPolicies;
+        askedAssetTN = askedAssetValue.assets.getTokenNames(askedAssetMPH);
+        askedAssetQty = askedAssetValue.lovelace;
+    } else { 
+        // The askedAsset is a native token and should only contain 1 MPH
+        assert(askedAssetValue.assets.mintingPolicies.length == 1);
+        askedAssetTN = askedAssetValue.assets.getTokenNames(askedAssetMPH)[0];
+        askedAssetQty = askedAssetValue.assets.get(askedAssetMPH, askedAssetTN);
+    }
+
+    const offeredAssetMP = offeredAssetValue.assets.mintingPolicies;
+    var offeredAssetMPH;
+    var offeredAssetTN;
+    var offeredAssetQty;
+
+    // Check if the askedAsset is lovelace
+    if (offeredAssetMP.length == 0) {
+        offeredAssetMPH = offeredAssetValue.assets.mintingPolicies;
+        offeredAssetTN = askedAssetValue.assets.getTokenNames(askedAssetMPH);
+        offeredAssetQty = askedAssetValue.lovelace;
+    } else { 
+        // The askedAsset is a native token and should only contain 1 MPH
+        assert(offeredAssetValue.assets.mintingPolicies.length == 1);
+        offeredAssetMPH = offeredAssetValue.assets.mintingPolicies[0];
+        offeredAssetTN = offeredAssetValue.assets.getTokenNames(offeredAssetMPH)[0];
+        offeredAssetQty = offeredAssetValue.assets.get(offeredAssetMPH, offeredAssetTN);
+    }
+
+    const swapAskedAssetMP = swapAskedAssetValue.assets.mintingPolicies;
+    var swapAskedAssetMPH;
+    var swapAskedAssetTN;
+    var swapAskedAssetQty;
+
+    // Check if the swapAskedAsset is lovelace
+    if (swapAskedAssetMP.length == 0) {
+        swapAskedAssetMPH = swapAskedAssetValue.assets.mintingPolicies;
+        swapAskedAssetTN = swapAskedAssetValue.assets.getTokenNames(askedAssetMPH);
+        swapAskedAssetQty = swapAskedAssetValue.lovelace;
+    } else { 
+        // The swapAskedAsset is a native token and should only contain 1 MPH
+        assert(swapAskedAssetValue.assets.mintingPolicies.length == 1);
+        swapAskedAssetMPH = swapAskedAssetValue.assets.mintingPolicies[0];
+        swapAskedAssetTN = swapAskedAssetValue.assets.getTokenNames(swapAskedAssettMPH)[0];
+        swapAskedAssetQty = swapAskedAssetValue.assets.get(swapAskedAssetMPH, swapAskedAssetTN);
+    }
+
+    // Check that the askedAssets match
+    if (askedAssetMPH.hex === swapAskedAssetMPH.hex &&
+        bytesToHex(askedAssetTN) === bytesToHex(swapAskedAssetTN)) {
+        console.log("calcQtyToBuy: swap assets match");
+    } else {
+        throw console.error("calcQtyToBuy: swap assets don't match")
+    }
+
     var qtyToBuy;
     var qtyRemainder;
     var changeAmt;
-    const price = utxo.origOutput.datum.data.list[0].int;
-    const qty = utxo.origOutput.datum.data.list[1].int;
-    const diff = spendAmt - price * qty;
+    
+    const price = askedAssetQty;
+    const qty = offeredAssetQty;
+    const spendAmt = swapAskedAssetQty;
+    const diff = spendAmt - price * qty; 
 
     assert(price > 0); // price must be greater than zero
-    const unitAmt = spendAmt / price;  
-    if (unitAmt < 1) {
+    const orderAmt = spendAmt / price;  
+    if (orderAmt < 1) {
         throw console.error("calcRemainder: insufficient funds")
     } else if (diff >= 0) { 
         qtyToBuy = qty;  // can purchase all available qty
         qtyRemainder = 0;
         changeAmt = spendAmt - qtyToBuy * price; // return the change to the buyer
     } else {
-        qtyToBuy = unitAmt; 
-        qtyRemainder = qty - unitAmt;  // calc the remaining qty at the utxo
+        qtyToBuy = orderAmt; 
+        qtyRemainder = qty - orderAmt;  // calc the remaining qty at the utxo
         changeAmt = spendAmt - qtyToBuy * price; // return the change to the buyer
     }
     
@@ -256,27 +327,63 @@ const calcQtyToBuy = async (utxo, spendAmt) => {
     if (changeAmt < minChangeAda) {
         changeAmt = 0;
     } 
+    
+    // Create the updated offeredAsset
+    const updatedOfferedAsset = new Assets();
+    updatedOfferedAsset.addComponent(
+        offeredAssetMPH,
+        offeredAssetTN,
+        BigInt(qtyRemainder)
+    );
+    const updatedOfferAssetValue = new Value(minAda, updatedOfferedAsset);
 
-    return { 
-        buyPrice: price,
-        buyQty: qtyToBuy,
-        remQty: qtyRemainder,
-        chgAmt: changeAmt
+    // Create the offeredAsset that is being bought
+    const buyOfferedAsset = new Assets();
+    buyOfferedAsset.addComponent(
+        offeredAssetMPH,
+        offeredAssetTN,
+        BigInt(qtyToBuy)
+    );
+    const buyOfferAssetValue = new Value(minAda, buyOfferedAsset);
+
+    // Create the change for the asked asset
+    var changeAskedAssetValue;
+    if (swapAskedAssetMP.length == 0) {
+        // Change is in lovelace
+        changeAskedAssetValue = new Value(changeAmt);
+    } else {
+        // Change is a native asset
+        const changeAskedAsset = new Assets();
+        changeAskedAsset.addComponent(
+            askedAssetMPH,
+            askedAssetTN,
+            BigInt(changeAmt)
+        );
+        changeAskedAssetValue = new Value(BigInt(0), changeAskedAsset);
+    }  
+
+    const orderInfo = { 
+        askedAssetVal: askedAssetValue,
+        buyAssetVal: buyOfferAssetValue,
+        offeredAssetVal: updatedOfferAssetValue,
+        changeAssetVal: changeAskedAssetValue
     }
+    return orderInfo
 }
 
 /**
  * Return the askedAsset and offeredAsset inline Datum info.
  * @package
  * @param {UTxO, number} utxo
- * @returns {{askedAsset, offeredAsset}}
+ * @returns {{askedAssetValue: Value, offeredAssetValue: Value}}
  */
-const getDatumInfo = async (utxo) => {
+const getSwapDatumInfo = async (utxo) => {
 
-    return {
-        askedAsset: utxo.origOutput.datum.data.list[0].int,
-        offeredAsset: utxo.origOutput.datum.data.list[1].int
+    const datumInfo = {
+        askedAssetValue: Value.fromUplcData(utxo.origOutput.datum.data.list[0]),
+        offeredAssetValue: Value.fromUplcData(utxo.origOutput.datum.data.list[1])
     }
+    return datumInfo
 }
 
 /**
@@ -307,10 +414,10 @@ const getEscrowDatumInfo = async (utxo) => {
 /**
  * Initialize the swap smart contract and mint a beacon token.
  * @package
- * @param {number} askedAsset
- * @param {number} offeredAsset
+ * @param {Value} askedAssetValue
+ * @param {Value} offeredAssetValue
  */
-const initSwap = async (askedAsset, offeredAsset) => {
+const initSwap = async (askedAssetValue, offeredAssetValue) => {
 
     try {
 
@@ -343,25 +450,17 @@ const initSwap = async (askedAsset, offeredAsset) => {
         )
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
-            askedAsset,
-            offeredAsset
+            askedAssetValue,
+            offeredAssetValue
           )
-
-        // Create product asset to be offered
-        const productAsset = new Assets();
-        productAsset.addComponent(
-            productMPH,
-            productTN,
-            BigInt(offeredAsset)
-        );
 
         // Attach the output with product asset, beacon token
         // and the swap datum to the swap script address
-        const swapValue = new Value(minAda, productAsset).add(new Value(BigInt(0), beaconAsset));
+        const swapValue = (new Value(minAda)).add(offeredAssetValue).add(beaconValue);
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgram.validatorHash),
             swapValue,
-            Datum.inline(swapDatum._toUplcData())
+            Datum.inline(swapDatum)
         ));
 
         console.log("");
@@ -393,11 +492,12 @@ const initSwap = async (askedAsset, offeredAsset) => {
 }
 
 /**
- * Execute a swap with a given amount
+ * Update swap askedAsset and/or offeredAsset
  * @package
- * @param {number} spendAmt
+ * @param {Value} askedAssetValue
+ * @param {Value} offeredAssetValue
  */
-const updateSwap = async (askedAsset, offeredAsset) => {
+const updateSwap = async (askedAssetValue, offeredAssetValue) => {
 
     try {
         console.log("");
@@ -428,29 +528,26 @@ const updateSwap = async (askedAsset, offeredAsset) => {
         const swapUtxo = await getSwapUTXO();
         tx.addInput(swapUtxo, swapRedeemer);  
         
-        // Get the qty of the offeredAsset from the datum
-        const datumInfo = await getDatumInfo(swapUtxo);
+        // Get the qty of the offeredAssetValue from the datum
+        const datumInfo = await getSwapDatumInfo(swapUtxo);
+
+        // Now calculate the new updated offerAssetValue
+        const updatedOfferedAssetValue = datumInfo.offeredAssetValue.add(offeredAssetValue);
+        
+        // Confirm that the updated offeredAssetValue is positive
+        updatedOfferedAssetValue.assertAllPositive();
 
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
-            BigInt(askedAsset),
-            BigInt(datumInfo.offeredAsset) + BigInt(offeredAsset)
+            askedAssetValue,
+            updatedOfferedAssetValue
           )
 
-        // Create product asset to be offered
-        const productAsset = new Assets();
-        productAsset.addComponent(
-            productMPH,
-            productTN,
-            BigInt(datumInfo.offeredAsset) + BigInt(offeredAsset)
-        );
-        // Build the output that includes the update product offered, beacon and 
-        // swap datum
-        const swapValue = new Value(minAda, productAsset).add(new Value(BigInt(0), beaconAsset));
+        const swapValue = updatedOfferedAssetValue.add(beaconValue);
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgram.validatorHash),
             swapValue,
-            Datum.inline(swapDatum._toUplcData())
+            Datum.inline(swapDatum)
         ));
 
         console.log("");
@@ -488,9 +585,9 @@ const updateSwap = async (askedAsset, offeredAsset) => {
 /**
  * Execute a swap with a given amount
  * @package
- * @param {number} spendAmt
+ * @param {Value} swapAskedAssetValue
  */
-const assetSwap = async (spendAmt) => {
+const assetSwap = async (swapAskedAssetValue) => {
 
     try {
         console.log("");
@@ -522,25 +619,20 @@ const assetSwap = async (spendAmt) => {
         tx.addInput(swapUtxo, swapRedeemer);   
         
         // Calc the amount of products remaining
-        //const remainderProductAmt = await calcRemainder(swapUtxo, BigInt(spendAmt));
-        const productToBuy = await calcQtyToBuy(swapUtxo, BigInt(spendAmt));
+        const orderDetails = await calcOrderDetails(swapUtxo, swapAskedAssetValue);
+
+        console.log("swapAsset: askedAssetVal", orderDetails.askedAssetVal.dump());
+        console.log("swapAsset: buyAssetVal", orderDetails.buyAssetVal.dump());
+        console.log("swapAsset: changeAssetVal", orderDetails.changeAssetVal.dump());
+        console.log("swapAsset: offeredAssetVal", orderDetails.offeredAssetVal.dump());
 
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
-            BigInt(productToBuy.buyPrice),  // askedAsset
-            BigInt(productToBuy.remQty)     // offeredAsset
+            orderDetails.askedAssetVal,     // askedAsset
+            orderDetails.offeredAssetVal     // offeredAsset
           )
         
-        // Create the output with the swap datum to the swap script address
-        const remainderProductAsset = new Assets();
-        remainderProductAsset.addComponent(
-            productMPH,
-            productTN,
-            BigInt(productToBuy.remQty)
-        );
-        // Build the output that includes the remaining product, beacon and 
-        // swap datum
-        const swapValue = new Value(minAda, remainderProductAsset).add(new Value(BigInt(0), beaconAsset));
+        const swapValue = orderDetails.offeredAssetVal.add(beaconValue);
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgram.validatorHash),
             swapValue,
@@ -550,20 +642,13 @@ const assetSwap = async (spendAmt) => {
         // Create the output to send the askedAsset to the seller address
         tx.addOutput(new TxOutput(
             seller.address,
-            new Value(BigInt(spendAmt) - BigInt(productToBuy.chgAmt))
+            swapAskedAssetValue.sub(orderDetails.changeAssetVal)
         ));
 
-        // Creat the output for the product asset that was purchased to the buyer address
-        const buyProductAsset = new Assets();
-        buyProductAsset.addComponent(
-            productMPH,
-            productTN,
-            BigInt(productToBuy.buyQty)
-        );
         tx.addOutput(new TxOutput(
             buyer.address,
-            new Value(minAda + BigInt(productToBuy.chgAmt), buyProductAsset))
-        );
+            orderDetails.buyAssetVal.add(orderDetails.changeAssetVal)
+        ));
 
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
@@ -647,7 +732,7 @@ const assetSwapEscrow = async (spendAmt) => {
         );
         // Build the output that includes the remaining product, beacon and 
         // swap datum
-        const swapValue = new Value(minAda, remainderProductAsset).add(new Value(BigInt(0), beaconAsset));
+        const swapValue = new Value(minAda, remainderProductAsset).add(beaconValue);
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgram.validatorHash),
             swapValue,
@@ -960,10 +1045,39 @@ const closeSwap = async () => {
     }
 }
 
-await initSwap(15_000_000, 5);                  // Initialize with price of 15 Ada and 5 product tokens
-await updateSwap(10_000_000, 5);                // Change price to 10 Ada and add 5 more product tokens
-await assetSwap(25_000_000);                    // Swap 25 Ada and get as many product tokens as possible
-//const order_id = await assetSwapEscrow(25_000_000);   // Swap 25 Ada and get as many product tokens as possible
+
+// Create the asset (value) being asked for
+const askedAssetValue = new Value(BigInt(15_000_000));
+
+// Create asset (value) to be offered
+const offeredAsset = new Assets();
+offeredAsset.addComponent(
+    productMPH,
+    productTN,
+    BigInt(5)
+);
+const offeredAssetValue = new Value(BigInt(0), offeredAsset);
+await initSwap(askedAssetValue, offeredAssetValue);   // Initialize with price of 15 Ada and 5 product tokens
+
+// Create the updated asset (value) being asked for
+const updatedAskedAssetValue = new Value(BigInt(10_000_000));
+
+// Create the additional asset (value) to be offered
+const updatedOfferedAsset = new Assets();
+updatedOfferedAsset.addComponent(
+    productMPH,
+    productTN,
+    BigInt(5)
+);
+const updatedOfferedAssetValue = new Value(BigInt(0), offeredAsset);
+await updateSwap(updatedAskedAssetValue, updatedOfferedAssetValue); // Change price to 10 Ada and add 5 more product tokens
+
+
+const swapAskedAssetValue = new Value(BigInt(25_000_000));
+await assetSwap(swapAskedAssetValue);                     // Swap 25 Ada and get as many product tokens as possible
+
+
+//const order_id = await assetSwapEscrow(25_000_000);       // Swap 25 Ada and get as many product tokens as possible
 //await approveEscrow(order_id);                  // Approve the escrow for a given order id
-await closeSwap();                              // Close the swap position
+//await closeSwap();                              // Close the swap position
 
