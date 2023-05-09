@@ -18,6 +18,19 @@ import {
   PubKeyHash,
 } from "@hyperionbt/helios";
 
+export {
+    approveEscrow,
+    assetSwap,
+    assetSwapEscrow,
+    buyer,
+    closeSwap,
+    initSwap,
+    minAda,
+    network,
+    seller,
+    updateSwap
+}
+
 
 // Create an Instance of NetworkEmulator
 const network = new NetworkEmulator();
@@ -32,7 +45,6 @@ let optimize = false;
 // Global variables
 const minAda = BigInt(2_000_000);        // minimum lovelace needed to send a token
 const minChangeAda = BigInt(1_000_000);  // minimum lovelace needed to send back as change
-const initSwapAmt = BigInt(100_000_000); // initial Ada for swap
 const deposit = BigInt(5_000_000)        // 5 Ada deposit for escrow
 
 
@@ -82,12 +94,16 @@ const rewardsToken = [[rewardsTN, BigInt(1)]];
 // Create seller wallet - we add 10ADA to start
 const seller = network.createWallet(BigInt(10_000_000));
 
-// Create product token to buy
-const productMPH = MintingPolicyHash.fromHex(
-    '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
-    );
-const productTN =  Array.from(new TextEncoder().encode('Product Asset Name'));
+// Create buyer wallet - we add 10ADA to start
+const buyer = network.createWallet(BigInt(10_000_000));
 
+
+// Create product token to buy
+//const productMPH = MintingPolicyHash.fromHex(
+//    '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
+//    );
+//const productTN =  Array.from(new TextEncoder().encode('Product Asset Name'));
+/*
 // Create product tokens in seller wallet
 const productAsset = new Assets();
 productAsset.addComponent(
@@ -108,7 +124,7 @@ network.createUtxo(buyer, initSwapAmt);
 // Now lets tick the network on 10 slots,
 // this will allow the UTxOs to be created from Genisis
 network.tick(BigInt(10));
-
+*/
 
 /**
  * Throws an error if 'cond' is false.
@@ -681,8 +697,6 @@ const assetSwap = async (swapAskedAssetValue) => {
             ));
         }
 
-
-
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
         await tx.finalize(networkParams, buyer.address, utxosBuyer);
@@ -1062,7 +1076,7 @@ const closeSwap = async () => {
     }
 }
 
-
+/*
 // Create the asset (value) being asked for
 const askedAssetValue = new Value(BigInt(15_000_000));
 
@@ -1142,4 +1156,5 @@ const swapAskedAssetValue2 = new Value(minAda, swapGoldTokenAsset);
 const order_id = await assetSwapEscrow(swapAskedAssetValue2);       // Swap 25 Ada and get as many product tokens as possible
 await approveEscrow(order_id);                  // Approve the escrow for a given order id
 
+*/
 
