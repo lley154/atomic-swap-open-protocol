@@ -5,7 +5,6 @@ import {
   Assets, 
   bytesToHex,
   Datum,
-  MintingPolicyHash,
   NetworkEmulator,
   NetworkParams, 
   Program,
@@ -31,7 +30,6 @@ export {
     updateSwap
 }
 
-
 // Create an Instance of NetworkEmulator
 const network = new NetworkEmulator();
 
@@ -46,7 +44,6 @@ let optimize = false;
 const minAda = BigInt(2_000_000);        // minimum lovelace needed to send a token
 const minChangeAda = BigInt(1_000_000);  // minimum lovelace needed to send back as change
 const deposit = BigInt(5_000_000)        // 5 Ada deposit for escrow
-
 
 // Compile the swap script
 const swapScript = await fs.readFile('./src/swap.hl', 'utf8');
@@ -96,35 +93,6 @@ const seller = network.createWallet(BigInt(10_000_000));
 
 // Create buyer wallet - we add 10ADA to start
 const buyer = network.createWallet(BigInt(10_000_000));
-
-
-// Create product token to buy
-//const productMPH = MintingPolicyHash.fromHex(
-//    '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
-//    );
-//const productTN =  Array.from(new TextEncoder().encode('Product Asset Name'));
-/*
-// Create product tokens in seller wallet
-const productAsset = new Assets();
-productAsset.addComponent(
-    productMPH,
-    productTN,
-    BigInt(10)
-);
-
-// Add Product Token to the seller wallet
-network.createUtxo(seller, minAda, productAsset);
-
-// Create buyer wallet - we add 10ADA to start
-const buyer = network.createWallet(BigInt(10_000_000));
-
-// Create buyer wallet - add 100ADA for swap
-network.createUtxo(buyer, initSwapAmt);
-
-// Now lets tick the network on 10 slots,
-// this will allow the UTxOs to be created from Genisis
-network.tick(BigInt(10));
-*/
 
 /**
  * Throws an error if 'cond' is false.
@@ -438,7 +406,6 @@ const getEscrowDatumInfo = async (utxo) => {
         orderValue: Value.fromUplcData(utxo.origOutput.datum.data.list[4]),
         productValue: Value.fromUplcData(utxo.origOutput.datum.data.list[5])
     }
-
     return datumInfo
 }
 
@@ -451,7 +418,6 @@ const getEscrowDatumInfo = async (utxo) => {
 const initSwap = async (askedAssetValue, offeredAssetValue) => {
 
     try {
-
         console.log("");
         console.log("************ INIT SWAP ************");
         console.log("************ PRE-TEST *************");
@@ -513,7 +479,6 @@ const initSwap = async (askedAssetValue, offeredAssetValue) => {
         console.log("************ POST-TEST ************");
         await showWalletUTXOs();
         await showScriptUTXOs();
-
         return true;
 
     } catch (err) {
@@ -604,7 +569,6 @@ const updateSwap = async (askedAssetValue, offeredAssetValue) => {
         console.log("************ POST-TEST ************");
         await showWalletUTXOs();
         await showScriptUTXOs();
-
         return true;
 
     } catch (err) {
@@ -699,12 +663,14 @@ const assetSwap = async (swapAskedAssetValue) => {
 
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
+        
         await tx.finalize(networkParams, buyer.address, utxosBuyer);
         console.log("Tx Fee", tx.body.fee);
         console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
 
         console.log("");
         console.log("************ SUBMIT TX ************");
+        
         // Submit Tx to the network
         const txId = await network.submitTx(tx);
         console.log("TxId", txId.dump());
@@ -716,7 +682,6 @@ const assetSwap = async (swapAskedAssetValue) => {
         console.log("************ POST-TEST ************");
         await showWalletUTXOs();
         await showScriptUTXOs();
-
         return true;
 
     } catch (err) {
@@ -824,6 +789,7 @@ const assetSwapEscrow = async (swapAskedAssetValue) => {
 
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
+        
         await tx.finalize(networkParams, buyer.address, utxosBuyer);
         console.log("Tx Fee", tx.body.fee);
         console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
@@ -846,7 +812,6 @@ const assetSwapEscrow = async (swapAskedAssetValue) => {
         console.log("************ POST-TEST ************");
         await showWalletUTXOs();
         await showScriptUTXOs();
-
         return orderId;
 
     } catch (err) {
@@ -949,6 +914,7 @@ const approveEscrow = async (orderId) => {
 
         console.log("");
         console.log("************ EXECUTE ESCROW APPROVE CONTRACT ************");
+        
         await tx.finalize(networkParams, seller.address, utxosSeller);
         console.log("Tx Fee", tx.body.fee);
         console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
@@ -974,7 +940,6 @@ const approveEscrow = async (orderId) => {
         console.log("************ POST-TEST ************");
         await showWalletUTXOs();
         await showScriptUTXOs();
-
         return true;
 
     } catch (err) {
@@ -982,7 +947,6 @@ const approveEscrow = async (orderId) => {
         return false;
     }
 }
-
 
 /**
  * Close a swap position
@@ -1046,6 +1010,7 @@ const closeSwap = async () => {
 
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
+        
         await tx.finalize(networkParams, seller.address, utxosSeller);
         console.log("Tx Fee", tx.body.fee);
         console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
@@ -1056,6 +1021,7 @@ const closeSwap = async () => {
 
         console.log("");
         console.log("************ SUBMIT TX ************");
+        
         // Submit Tx to the network
         const txId = await network.submitTx(tx);
         console.log("TxId", txId.dump());
@@ -1067,7 +1033,6 @@ const closeSwap = async () => {
         console.log("************ POST-TEST ************");
         await showWalletUTXOs();
         await showScriptUTXOs();
-
         return true;
 
     } catch (err) {
@@ -1075,86 +1040,4 @@ const closeSwap = async () => {
         return false;
     }
 }
-
-/*
-// Create the asset (value) being asked for
-const askedAssetValue = new Value(BigInt(15_000_000));
-
-// Create asset (value) to be offered
-const offeredAsset = new Assets();
-offeredAsset.addComponent(
-    productMPH,
-    productTN,
-    BigInt(5)
-);
-const offeredAssetValue = new Value(BigInt(0), offeredAsset);
-//await initSwap(askedAssetValue, offeredAssetValue);   // Initialize with price of 15 Ada and 5 product tokens
-
-// Create the updated asset (value) being asked for
-const updatedAskedAssetValue = new Value(BigInt(10_000_000));
-
-// Create the additional asset (value) to be offered
-const updatedOfferedAsset = new Assets();
-updatedOfferedAsset.addComponent(
-    productMPH,
-    productTN,
-    BigInt(5)
-);
-const updatedOfferedAssetValue = new Value(BigInt(0), offeredAsset);
-//await updateSwap(updatedAskedAssetValue, updatedOfferedAssetValue); // Change price to 10 Ada and add 5 more product tokens
-
-
-const swapAskedAssetValue = new Value(BigInt(25_000_000));
-//await assetSwap(swapAskedAssetValue);                     // Swap 25 Ada and get as many product tokens as possible
-//await closeSwap();                              // Close the swap position
-
-
-// Create a gold token to use as medium of exchange
-const goldTokenMPH = MintingPolicyHash.fromHex(
-    '23aa5486dab6527c4697387736ae449411c03dcd20a3950453e6777e'
-    );
-const goldTokenTN =  Array.from(new TextEncoder().encode('Gold Token'));
-
-// Create product tokens in seller wallet
-const buyerGoldTokenAsset = new Assets();
-buyerGoldTokenAsset.addComponent(
-    goldTokenMPH,
-    goldTokenTN,
-    BigInt(5)
-);
-
-// Add Product Token to the seller wallet
-network.createUtxo(buyer, minAda, buyerGoldTokenAsset);
-
-
-// Create gold tokens to for askedAssets
-const goldTokenAsset = new Assets();
-goldTokenAsset.addComponent(
-    goldTokenMPH,
-    goldTokenTN,
-    BigInt(2)
-);
-
-const askedAssetValue2 = new Value(BigInt(0), goldTokenAsset);
-
-await initSwap(askedAssetValue2, offeredAssetValue);   // Initialize with price of 15 Ada and 5 product tokens
-
-// Create gold token for swap asset
-const swapGoldTokenAsset = new Assets();
-swapGoldTokenAsset.addComponent(
-    goldTokenMPH,
-    goldTokenTN,
-    BigInt(5)
-);
-
-const swapAskedAssetValue2 = new Value(minAda, swapGoldTokenAsset);
-
-//await assetSwap(swapAskedAssetValue2);                     // Swap 25 Ada and get as many product tokens as possible
-//await closeSwap();                              // Close the swap position
-
-
-const order_id = await assetSwapEscrow(swapAskedAssetValue2);       // Swap 25 Ada and get as many product tokens as possible
-await approveEscrow(order_id);                  // Approve the escrow for a given order id
-
-*/
 
