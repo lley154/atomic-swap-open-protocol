@@ -53,7 +53,9 @@ const beaconCompiledProgram = beaconProgram.compile(optimize);
 const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
 
 // Construct the Beacon asset
-const beaconToken = [[textToBytes("Beacon Token"), BigInt(1)]];
+//const beaconTN = Array.from(new TextEncoder().encode("Beacon Token"))
+const beaconTN = textToBytes("Beacon Token");
+const beaconToken = [[beaconTN, BigInt(1)]];
 const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
 const beaconValue = new Value(BigInt(0), beaconAsset);
 
@@ -64,8 +66,8 @@ const pointsCompiledProgram = pointsProgram.compile(optimize);
 const pointsMPH = pointsCompiledProgram.mintingPolicyHash;
 
 // Construct the Points asset
-const pointsToken = [[textToBytes("Points Token"), BigInt(1)]];
-const pointsTN =  Array.from(new TextEncoder().encode('Points Token'));
+const pointsTN = textToBytes("Points Token");
+const pointsToken = [[pointsTN, BigInt(1)]];
 
 // Compile the Rewards minting script
 const rewardsScript = await fs.readFile('./src/rewards.hl', 'utf8');
@@ -74,8 +76,8 @@ const rewardsCompiledProgram = rewardsProgram.compile(optimize);
 const rewardsMPH = rewardsCompiledProgram.mintingPolicyHash;
 
 // Construct the Rewards asset
-const rewardsToken = [[textToBytes("Rewards Token"), BigInt(1)]];
-const rewardsTN =  Array.from(new TextEncoder().encode('Rewards Token'));
+const rewardsTN =  textToBytes("Rewards Token");
+const rewardsToken = [[rewardsTN, BigInt(1)]];
 
 // Create seller wallet - we add 10ADA to start
 const seller = network.createWallet(BigInt(10_000_000));
@@ -712,9 +714,9 @@ const assetSwap = async (swapAskedAssetValue) => {
 /**
  * Execute a swap with a given amount using an escrow script
  * @package
- * @param {number} spendAmt
+ * @param {Value} swapAskedAssetValue
  */
-const assetSwapEscrow = async (spendAmt) => {
+const assetSwapEscrow = async (swapAskedAssetValue) => {
 
     try {
         console.log("");
@@ -746,46 +748,40 @@ const assetSwapEscrow = async (spendAmt) => {
         tx.addInput(swapUtxo, swapRedeemer);   
         
         // Calc the amount of products to buy
-        const productToBuy = await calcQtyToBuy(swapUtxo, BigInt(spendAmt));
+        const orderDetails = await calcOrderDetails(swapUtxo, swapAskedAssetValue);
+
+        console.log("swapAsset: askedAssetVal", orderDetails.askedAssetVal.dump());
+        console.log("swapAsset: buyAssetVal", orderDetails.buyAssetVal.dump());
+        console.log("swapAsset: changeAssetVal", orderDetails.changeAssetVal.dump());
+        console.log("swapAsset: offeredAssetVal", orderDetails.offeredAssetVal.dump());
+        console.log("swapAsset: noChange", orderDetails.noChange);
+
 
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
-            BigInt(productToBuy.buyPrice),  // askedAsset
-            BigInt(productToBuy.remQty)     // offeredAsset
+            orderDetails.askedAssetVal,     // askedAsset
+            orderDetails.offeredAssetVal    // offeredAsset
           )
         
-        // Create the remaining product assets if any
-        const remainderProductAsset = new Assets();
-        remainderProductAsset.addComponent(
-            productMPH,
-            productTN,
-            BigInt(productToBuy.remQty)
-        );
-        // Build the output that includes the remaining product, beacon and 
-        // swap datum
-        const swapValue = new Value(minAda, remainderProductAsset).add(beaconValue);
+        const swapValue = orderDetails.offeredAssetVal.add(beaconValue);
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgram.validatorHash),
             swapValue,
             Datum.inline(swapDatum._toUplcData())
         ));
 
-        // Create the bought product asset
-        const buyProductAsset = new Assets();
-        buyProductAsset.addComponent(
-            productMPH,
-            productTN,
-            BigInt(productToBuy.buyQty)
-        );
-
-        // Construct the values to lock at the escrow contract
-        const orderValue = new Value(BigInt(spendAmt) - BigInt(productToBuy.chgAmt));
-        const productValue = new Value(BigInt(0), buyProductAsset);
         const depositValue = new Value(deposit);
         
         // Use timestamp for order id for now
         const orderId = Date.now().toString();  
         
+        var orderValue;
+        if (orderDetails.noChange) {
+            orderValue = swapAskedAssetValue;
+        } else {
+            orderValue = swapAskedAssetValue.sub(orderDetails.changeAssetVal);
+        }
+
         // Construct the escrow datum
         const escrowDatum = new (escrowProgram.types.Datum)(
             new ByteArray(orderId),
@@ -793,23 +789,23 @@ const assetSwapEscrow = async (spendAmt) => {
             depositValue,
             seller.pubKeyHash,
             orderValue,
-            productValue
+            orderDetails.buyAssetVal
             )
 
         // Create an output for the order total, depoist and products bought 
         // to the escrow script address
         tx.addOutput(new TxOutput(
             Address.fromHashes(escrowCompiledProgram.validatorHash),
-            orderValue.add(depositValue).add(productValue),
+            orderValue.add(depositValue).add(orderDetails.buyAssetVal),
             Datum.inline(escrowDatum._toUplcData())
         ));
 
         // Return change to the buyer if there is any
-        if (productToBuy.chgAmt != 0) {
+        if (!orderDetails.noChange) {
             tx.addOutput(new TxOutput(
                 buyer.address,
-                new Value(BigInt(productToBuy.chgAmt)))
-            );
+                orderDetails.changeAssetVal
+            ));
         }
 
         console.log("");
@@ -824,6 +820,7 @@ const assetSwapEscrow = async (spendAmt) => {
 
         console.log("");
         console.log("************ SUBMIT TX ************");
+        
         // Submit Tx to the network
         const txId = await network.submitTx(tx);
         console.log("TxId", txId.dump());
@@ -862,7 +859,6 @@ const approveEscrow = async (orderId) => {
         await showScriptUTXOs();
 
         // Get the UTxOs in Seller and Buyer Wallet
-        //const utxosBuyer = await network.getUtxos(buyer.address);
         const utxosSeller = await network.getUtxos(seller.address);
 
         // Start building the transaction
@@ -1017,7 +1013,7 @@ const closeSwap = async () => {
         const beaconRedeemer = (new beaconProgram.types.Redeemer.Burn())._toUplcData();
 
         // Create beacon token for burning
-        const beaconToken = [[textToBytes("Beacon Token"), BigInt(-1)]];
+        const beaconToken = [[beaconTN, BigInt(-1)]];
 
         // Add the mint to the tx
         tx.mintTokens(
@@ -1139,11 +1135,11 @@ swapGoldTokenAsset.addComponent(
 
 const swapAskedAssetValue2 = new Value(minAda, swapGoldTokenAsset);
 
-await assetSwap(swapAskedAssetValue2);                     // Swap 25 Ada and get as many product tokens as possible
-await closeSwap();                              // Close the swap position
+//await assetSwap(swapAskedAssetValue2);                     // Swap 25 Ada and get as many product tokens as possible
+//await closeSwap();                              // Close the swap position
 
 
-//const order_id = await assetSwapEscrow(25_000_000);       // Swap 25 Ada and get as many product tokens as possible
-//await approveEscrow(order_id);                  // Approve the escrow for a given order id
+const order_id = await assetSwapEscrow(swapAskedAssetValue2);       // Swap 25 Ada and get as many product tokens as possible
+await approveEscrow(order_id);                  // Approve the escrow for a given order id
 
 
