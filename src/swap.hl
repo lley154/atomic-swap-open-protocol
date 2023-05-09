@@ -1,8 +1,8 @@
 spending swap
 
 struct Datum {
-    askedAsset: Int
-    offeredAsset: Int
+    askedAsset: Value
+    offeredAsset: Value
 }
 
 enum Redeemer {
