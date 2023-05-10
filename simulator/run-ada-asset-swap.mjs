@@ -7,14 +7,18 @@ import {
 
 import {
     assetSwap,
-    buyer,
     closeSwap,
     initSwap,
     minAda,
     network,
-    seller,
     updateSwap
 } from "./swap-simulator.mjs"
+
+// Create seller wallet - we add 10ADA to start
+const seller = network.createWallet(BigInt(10_000_000));
+
+// Create buyer wallet - we add 10ADA to start
+const buyer = network.createWallet(BigInt(10_000_000));
 
 // Create the asset value being asked for
 const askedAssetValue = new Value(BigInt(15_000_000));
@@ -50,7 +54,7 @@ offeredAsset.addComponent(
     BigInt(5)
 );
 const offeredAssetValue = new Value(BigInt(0), offeredAsset);
-await initSwap(askedAssetValue, offeredAssetValue);   // Initialize with price of 15 Ada and 5 product tokens
+await initSwap(buyer, seller, askedAssetValue, offeredAssetValue);   // Initialize with price of 15 Ada and 5 product tokens
 
 // Create the updated asset value being asked for
 const updatedAskedAssetValue = new Value(BigInt(10_000_000));
@@ -65,13 +69,13 @@ updatedOfferedAsset.addComponent(
 const updatedOfferedAssetValue = new Value(BigInt(0), offeredAsset);
 
 // Change price to 10 Ada and add 5 more product tokens
-await updateSwap(updatedAskedAssetValue, updatedOfferedAssetValue); 
+await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue); 
 
 const swapAskedAssetValue = new Value(BigInt(25_000_000));
 
 // Swap 25 Ada and get as many product tokens as possible
-await assetSwap(swapAskedAssetValue);
+await assetSwap(buyer, seller, swapAskedAssetValue);
 
 // Close the swap position
-await closeSwap();                              
+await closeSwap(buyer, seller);                              
 

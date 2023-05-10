@@ -7,13 +7,17 @@ import {
 
 import {
     assetSwap,
-    buyer,
     closeSwap,
     initSwap,
     minAda,
-    network,
-    seller
+    network
 } from "./swap-simulator.mjs"
+
+// Create seller wallet - we add 10ADA to start
+const seller = network.createWallet(BigInt(10_000_000));
+
+// Create buyer wallet - we add 10ADA to start
+const buyer = network.createWallet(BigInt(10_000_000));
 
 // Create product token to buy
 const productMPH = MintingPolicyHash.fromHex(
@@ -72,7 +76,7 @@ usdaTokenAsset.addComponent(
 const askedAssetValue = new Value(BigInt(0), usdaTokenAsset);
 
 // Initialize with price of 20 usda tokens with 5 product tokens
-await initSwap(askedAssetValue, offeredAssetValue);   
+await initSwap(buyer, seller, askedAssetValue, offeredAssetValue);   
 
 // Create usda token for swap asset
 const swapUSDATokenAsset = new Assets();
@@ -85,8 +89,8 @@ swapUSDATokenAsset.addComponent(
 const swapAskedAssetValue = new Value(minAda, swapUSDATokenAsset);
 
 // Swap 50 usda tokens and get as many product tokens as possible
-await assetSwap(swapAskedAssetValue);  
+await assetSwap(buyer, seller, swapAskedAssetValue);  
 
 // Close the swap position
-await closeSwap();
+await closeSwap(buyer, seller);
 

@@ -21,12 +21,10 @@ export {
     approveEscrow,
     assetSwap,
     assetSwapEscrow,
-    buyer,
     closeSwap,
     initSwap,
     minAda,
     network,
-    seller,
     updateSwap
 }
 
@@ -62,7 +60,6 @@ const beaconCompiledProgram = beaconProgram.compile(optimize);
 const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
 
 // Construct the Beacon asset
-//const beaconTN = Array.from(new TextEncoder().encode("Beacon Token"))
 const beaconTN = textToBytes("Beacon Token");
 const beaconToken = [[beaconTN, BigInt(1)]];
 const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
@@ -88,12 +85,6 @@ const rewardsMPH = rewardsCompiledProgram.mintingPolicyHash;
 const rewardsTN =  textToBytes("Rewards Token");
 const rewardsToken = [[rewardsTN, BigInt(1)]];
 
-// Create seller wallet - we add 10ADA to start
-const seller = network.createWallet(BigInt(10_000_000));
-
-// Create buyer wallet - we add 10ADA to start
-const buyer = network.createWallet(BigInt(10_000_000));
-
 /**
  * Throws an error if 'cond' is false.
  * @package
@@ -110,7 +101,7 @@ function assert(cond, msg = "assertion failed") {
  * Prints out the UTXOs for the buyer and seller wallets
  * @package
  */
-const showWalletUTXOs = async () => {
+const showWalletUTXOs = async (buyer, seller) => {
 
      // Get the UTxOs in Buyer & Seller Wallets
      const utxosSeller = await network.getUtxos(seller.address);
@@ -415,13 +406,13 @@ const getEscrowDatumInfo = async (utxo) => {
  * @param {Value} askedAssetValue
  * @param {Value} offeredAssetValue
  */
-const initSwap = async (askedAssetValue, offeredAssetValue) => {
+const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => {
 
     try {
         console.log("");
         console.log("************ INIT SWAP ************");
         console.log("************ PRE-TEST *************");
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         
         // Now we are able to get the UTxOs in Buyer & Seller Wallets
         const utxosSeller = await network.getUtxos(seller.address);
@@ -477,7 +468,7 @@ const initSwap = async (askedAssetValue, offeredAssetValue) => {
 
         console.log("");
         console.log("************ POST-TEST ************");
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
         return true;
 
@@ -493,7 +484,7 @@ const initSwap = async (askedAssetValue, offeredAssetValue) => {
  * @param {Value} askedAssetValue
  * @param {Value} offeredAssetValue
  */
-const updateSwap = async (askedAssetValue, offeredAssetValue) => {
+const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => {
 
     try {
         console.log("");
@@ -502,7 +493,7 @@ const updateSwap = async (askedAssetValue, offeredAssetValue) => {
         
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
 
         // Get the UTxOs in Seller Wallet
@@ -567,7 +558,7 @@ const updateSwap = async (askedAssetValue, offeredAssetValue) => {
 
         console.log("");
         console.log("************ POST-TEST ************");
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
         return true;
 
@@ -582,7 +573,7 @@ const updateSwap = async (askedAssetValue, offeredAssetValue) => {
  * @package
  * @param {Value} swapAskedAssetValue
  */
-const assetSwap = async (swapAskedAssetValue) => {
+const assetSwap = async (buyer, seller, swapAskedAssetValue) => {
 
     try {
         console.log("");
@@ -591,7 +582,7 @@ const assetSwap = async (swapAskedAssetValue) => {
 
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
         
         // Now we are able to get the UTxOs in Buyer & Seller Wallets
@@ -680,7 +671,7 @@ const assetSwap = async (swapAskedAssetValue) => {
 
         console.log("");
         console.log("************ POST-TEST ************");
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
         return true;
 
@@ -695,7 +686,7 @@ const assetSwap = async (swapAskedAssetValue) => {
  * @package
  * @param {Value} swapAskedAssetValue
  */
-const assetSwapEscrow = async (swapAskedAssetValue) => {
+const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue) => {
 
     try {
         console.log("");
@@ -704,7 +695,7 @@ const assetSwapEscrow = async (swapAskedAssetValue) => {
 
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
         
         // Get the UTxOs in Buyer Wallets
@@ -810,7 +801,7 @@ const assetSwapEscrow = async (swapAskedAssetValue) => {
 
         console.log("");
         console.log("************ POST-TEST ************");
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
         return orderId;
 
@@ -825,7 +816,7 @@ const assetSwapEscrow = async (swapAskedAssetValue) => {
  * Approve and release the order in the escrow smart contract
  * @package
  */
-const approveEscrow = async (orderId) => {
+const approveEscrow = async (buyer, seller, orderId) => {
 
     try {
         console.log("");
@@ -834,7 +825,7 @@ const approveEscrow = async (orderId) => {
         
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
 
         // Get the UTxOs in Seller and Buyer Wallet
@@ -938,7 +929,7 @@ const approveEscrow = async (orderId) => {
 
         console.log("");
         console.log("************ POST-TEST ************");
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
         return true;
 
@@ -952,7 +943,7 @@ const approveEscrow = async (orderId) => {
  * Close a swap position
  * @package
  */
-const closeSwap = async () => {
+const closeSwap = async (buyer, seller) => {
 
     try {
         console.log("");
@@ -961,7 +952,7 @@ const closeSwap = async () => {
         
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
 
         // Get the UTxOs in Seller Wallet
@@ -1031,7 +1022,7 @@ const closeSwap = async () => {
 
         console.log("");
         console.log("************ POST-TEST ************");
-        await showWalletUTXOs();
+        await showWalletUTXOs(buyer, seller);
         await showScriptUTXOs();
         return true;
 
