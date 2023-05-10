@@ -5,6 +5,7 @@ import {
   Assets, 
   bytesToHex,
   Datum,
+  MintingPolicyHash,
   NetworkEmulator,
   NetworkParams, 
   Program,
@@ -21,10 +22,14 @@ export {
     approveEscrow,
     assetSwap,
     assetSwapEscrow,
+    beaconMPH,
+    beaconTN,
     closeSwap,
     initSwap,
+    getMphTnQty,
     minAda,
     network,
+    SwapConfig,
     updateSwap
 }
 
@@ -43,10 +48,24 @@ const minAda = BigInt(2_000_000);        // minimum lovelace needed to send a to
 const minChangeAda = BigInt(1_000_000);  // minimum lovelace needed to send back as change
 const deposit = BigInt(5_000_000)        // 5 Ada deposit for escrow
 
-// Compile the swap script
+// Define the swap config object which is used to uniquely create
+// each swap script address for a given asset pair, beacon token and 
+// seller pkh
+class SwapConfig {
+    constructor(askedMPH, askedTN, offeredMPH, offeredTN, beaconMPH, beaconTN, sellerPKH) {
+      this.askedMPH = askedMPH;
+      this.askedTN = askedTN;
+      this.offeredMPH = offeredMPH;
+      this.offeredTN = offeredTN;
+      this.beaconMPH = beaconMPH;
+      this.beaconTN = beaconTN;
+      this.sellerPKH = sellerPKH;
+    }
+}
+
+// Create a new program swap script
 const swapScript = await fs.readFile('./src/swap.hl', 'utf8');
 const swapProgram = Program.new(swapScript);
-const swapCompiledProgram = swapProgram.compile(optimize);
 
 // Compile the escrow script
 const escrowScript = await fs.readFile('./src/escrow.hl', 'utf8');
@@ -125,12 +144,25 @@ const showWalletUTXOs = async (buyer, seller) => {
 
 /**
  * Prints out the UTXOs at the swap script address
+ * @param {SwapConfig} swapConfig
  * @package
  */
-const showScriptUTXOs = async () => {
+const showScriptUTXOs = async (swapConfig) => {
 
-    const swapUtxos = await network.getUtxos(Address.fromHashes(swapCompiledProgram.validatorHash));
+    swapProgram.parameters = {["ASKED_MPH"] : swapConfig.askedMPH};
+    swapProgram.parameters = {["ASKED_TN"] : swapConfig.askedTN};
+    swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
+    swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
+    swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
+    swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
+    swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
+
+    const swapCompiledProgram = swapProgram.compile(optimize);
+
+    const swapScriptAddr = Address.fromHashes(swapCompiledProgram.validatorHash);
+    const swapUtxos = await network.getUtxos(swapScriptAddr);
     console.log("");
+    console.log("Swap Script Address: ", swapScriptAddr.toBech32());
     console.log("Swap Script UTXOs:");
     console.log("------------------");
     for (const utxo of swapUtxos) {
@@ -156,10 +188,20 @@ const showScriptUTXOs = async () => {
 /**
  * Get the UTXO at the swap address which contains the beacon token
  * @package
- * @param {} 
+ * @param {SwapConfig} swapConfig
  * @returns {UTxO} 
  */
-const getSwapUTXO = async () => {
+const getSwapUTXO = async (swapConfig) => {
+
+    swapProgram.parameters = {["ASKED_MPH"] : swapConfig.askedMPH};
+    swapProgram.parameters = {["ASKED_TN"] : swapConfig.askedTN};
+    swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
+    swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
+    swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
+    swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
+    swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
+    
+    const swapCompiledProgram = swapProgram.compile(optimize);
 
     const swapUtxos = await network.getUtxos(Address.fromHashes(swapCompiledProgram.validatorHash));
     for (const utxo of swapUtxos) {
@@ -193,6 +235,40 @@ const getEscrowUTXO = async (orderId, buyerPKH, sellerPKH) => {
         }
     }
 }
+
+/**
+ * Obtain the 1st minting policy hash, token name and qty from a value.
+ * @package
+ * @param {Value} value
+ * @return {{mph: string, tn: string, qty: bigint}}
+ */
+const getMphTnQty = async (value) => {
+
+    console.log("getMphTnQty: ", value);
+    const valueMP = value.assets.mintingPolicies;
+
+    // Check if the askedAsset is lovelace
+    if (valueMP.length == 0) {
+        return {
+            mph: "",
+            tn: "",
+            qty: value.lovelace
+        }
+    } else { 
+        // The askedAsset is a native token and should only contain 1 MPH
+        assert(value.assets.mintingPolicies.length == 1);
+        const valueMPH = value.assets.mintingPolicies[0];
+        const valueTN = value.assets.getTokenNames(valueMPH)[0];
+        const valueQty = value.assets.get(valueMPH, valueTN);
+
+        return {
+            mph: valueMPH.hex,
+            tn: bytesToHex(valueTN),
+            qty: valueQty
+        }
+    }
+}
+
 
 /**
  * Determine the quantity of a product a buyer can purchase
@@ -406,13 +482,23 @@ const getEscrowDatumInfo = async (utxo) => {
  * @param {Value} askedAssetValue
  * @param {Value} offeredAssetValue
  */
-const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => {
+const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapConfig) => {
 
     try {
         console.log("");
         console.log("************ INIT SWAP ************");
         console.log("************ PRE-TEST *************");
         await showWalletUTXOs(buyer, seller);
+
+        // Compile the swap script
+        swapProgram.parameters = {["ASKED_MPH"] : swapConfig.askedMPH};
+        swapProgram.parameters = {["ASKED_TN"] : swapConfig.askedTN};
+        swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
+        swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
+        swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
+        swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
+        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
+        const swapCompiledProgram = swapProgram.compile(optimize);  
         
         // Now we are able to get the UTxOs in Buyer & Seller Wallets
         const utxosSeller = await network.getUtxos(seller.address);
@@ -441,7 +527,7 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => {
             askedAssetValue,
             offeredAssetValue
           )
-
+        
         // Attach the output with product asset, beacon token
         // and the swap datum to the swap script address
         const swapValue = (new Value(minAda)).add(offeredAssetValue).add(beaconValue);
@@ -469,7 +555,7 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => {
         console.log("");
         console.log("************ POST-TEST ************");
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
         return true;
 
     } catch (err) {
@@ -484,7 +570,7 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => {
  * @param {Value} askedAssetValue
  * @param {Value} offeredAssetValue
  */
-const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => {
+const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapConfig) => {
 
     try {
         console.log("");
@@ -494,7 +580,17 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => 
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
+
+        // Compile the swap script
+        swapProgram.parameters = {["ASKED_MPH"] : swapConfig.askedMPH};
+        swapProgram.parameters = {["ASKED_TN"] : swapConfig.askedTN};
+        swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
+        swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
+        swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
+        swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
+        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
+        const swapCompiledProgram = swapProgram.compile(optimize);  
 
         // Get the UTxOs in Seller Wallet
         const utxosSeller = await network.getUtxos(seller.address);
@@ -512,7 +608,7 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => 
         const swapRedeemer = (new swapProgram.types.Redeemer.Update())._toUplcData();
         
         // Get the UTXO that has the swap datum
-        const swapUtxo = await getSwapUTXO();
+        const swapUtxo = await getSwapUTXO(swapConfig);
         tx.addInput(swapUtxo, swapRedeemer);  
         
         // Get the qty of the offeredAssetValue from the datum
@@ -529,7 +625,7 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => 
             askedAssetValue,
             updatedOfferedAssetValue
           )
-
+        
         const swapValue = updatedOfferedAssetValue.add(beaconValue);
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgram.validatorHash),
@@ -559,7 +655,7 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => 
         console.log("");
         console.log("************ POST-TEST ************");
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
         return true;
 
     } catch (err) {
@@ -573,7 +669,7 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue) => 
  * @package
  * @param {Value} swapAskedAssetValue
  */
-const assetSwap = async (buyer, seller, swapAskedAssetValue) => {
+const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig) => {
 
     try {
         console.log("");
@@ -583,7 +679,17 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue) => {
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
+
+         // Compile the swap script
+         swapProgram.parameters = {["ASKED_MPH"] : swapConfig.askedMPH};
+         swapProgram.parameters = {["ASKED_TN"] : swapConfig.askedTN};
+         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
+         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
+         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
+         swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
+         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
+         const swapCompiledProgram = swapProgram.compile(optimize); 
         
         // Now we are able to get the UTxOs in Buyer & Seller Wallets
         const utxosBuyer = await network.getUtxos(buyer.address);
@@ -601,7 +707,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue) => {
         const swapRedeemer = (new swapProgram.types.Redeemer.Swap())._toUplcData();
         
         // Get the UTXO that has the swap datum
-        const swapUtxo = await getSwapUTXO();
+        const swapUtxo = await getSwapUTXO(swapConfig);
         tx.addInput(swapUtxo, swapRedeemer);   
         
         // Calc the amount of products remaining
@@ -672,7 +778,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue) => {
         console.log("");
         console.log("************ POST-TEST ************");
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
         return true;
 
     } catch (err) {
@@ -686,7 +792,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue) => {
  * @package
  * @param {Value} swapAskedAssetValue
  */
-const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue) => {
+const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig) => {
 
     try {
         console.log("");
@@ -696,7 +802,17 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue) => {
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
+
+        // Compile the swap script
+        swapProgram.parameters = {["ASKED_MPH"] : swapConfig.askedMPH};
+        swapProgram.parameters = {["ASKED_TN"] : swapConfig.askedTN};
+        swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
+        swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
+        swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
+        swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
+        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
+        const swapCompiledProgram = swapProgram.compile(optimize); 
         
         // Get the UTxOs in Buyer Wallets
         const utxosBuyer = await network.getUtxos(buyer.address);
@@ -714,7 +830,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue) => {
         const swapRedeemer = (new swapProgram.types.Redeemer.Swap())._toUplcData();
         
         // Get the UTXO that has the swap datum
-        const swapUtxo = await getSwapUTXO();
+        const swapUtxo = await getSwapUTXO(swapConfig);
         tx.addInput(swapUtxo, swapRedeemer);   
         
         // Calc the amount of products to buy
@@ -725,7 +841,6 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue) => {
         console.log("swapAsset: changeAssetVal", orderDetails.changeAssetVal.dump());
         console.log("swapAsset: offeredAssetVal", orderDetails.offeredAssetVal.dump());
         console.log("swapAsset: noChange", orderDetails.noChange);
-
 
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
@@ -802,7 +917,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue) => {
         console.log("");
         console.log("************ POST-TEST ************");
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
         return orderId;
 
     } catch (err) {
@@ -816,7 +931,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue) => {
  * Approve and release the order in the escrow smart contract
  * @package
  */
-const approveEscrow = async (buyer, seller, orderId) => {
+const approveEscrow = async (buyer, seller, orderId, swapConfig) => {
 
     try {
         console.log("");
@@ -826,7 +941,7 @@ const approveEscrow = async (buyer, seller, orderId) => {
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
 
         // Get the UTxOs in Seller and Buyer Wallet
         const utxosSeller = await network.getUtxos(seller.address);
@@ -930,7 +1045,7 @@ const approveEscrow = async (buyer, seller, orderId) => {
         console.log("");
         console.log("************ POST-TEST ************");
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
         return true;
 
     } catch (err) {
@@ -943,7 +1058,7 @@ const approveEscrow = async (buyer, seller, orderId) => {
  * Close a swap position
  * @package
  */
-const closeSwap = async (buyer, seller) => {
+const closeSwap = async (buyer, seller, swapConfig) => {
 
     try {
         console.log("");
@@ -953,7 +1068,17 @@ const closeSwap = async (buyer, seller) => {
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
+
+         // Compile the swap script
+         swapProgram.parameters = {["ASKED_MPH"] : swapConfig.askedMPH};
+         swapProgram.parameters = {["ASKED_TN"] : swapConfig.askedTN};
+         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
+         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
+         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
+         swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
+         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
+         const swapCompiledProgram = swapProgram.compile(optimize); 
 
         // Get the UTxOs in Seller Wallet
         const utxosSeller = await network.getUtxos(seller.address);
@@ -971,7 +1096,7 @@ const closeSwap = async (buyer, seller) => {
         const swapRedeemer = (new swapProgram.types.Redeemer.Close())._toUplcData();
         
         // Get the UTXO that has the swap datum
-        const swapUtxo = await getSwapUTXO();
+        const swapUtxo = await getSwapUTXO(swapConfig);
         tx.addInput(swapUtxo, swapRedeemer);   
 
         // Add the beacon minting script as a witness to the transaction
@@ -1023,7 +1148,7 @@ const closeSwap = async (buyer, seller) => {
         console.log("");
         console.log("************ POST-TEST ************");
         await showWalletUTXOs(buyer, seller);
-        await showScriptUTXOs();
+        await showScriptUTXOs(swapConfig);
         return true;
 
     } catch (err) {

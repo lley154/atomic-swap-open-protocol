@@ -1,5 +1,6 @@
 import {
   Assets, 
+  bytesToHex,
   MintingPolicyHash,
   Value,
   textToBytes, 
@@ -7,10 +8,14 @@ import {
 
 import {
     assetSwap,
+    beaconMPH,
+    beaconTN,
     closeSwap,
     initSwap,
+    getMphTnQty,
     minAda,
     network,
+    SwapConfig,
     updateSwap
 } from "./swap-simulator.mjs"
 
@@ -54,7 +59,21 @@ offeredAsset.addComponent(
     BigInt(5)
 );
 const offeredAssetValue = new Value(BigInt(0), offeredAsset);
-await initSwap(buyer, seller, askedAssetValue, offeredAssetValue);   // Initialize with price of 15 Ada and 5 product tokens
+
+// Create the swap config
+const askedValueInfo = await getMphTnQty(askedAssetValue);
+const offeredValueInfo = await getMphTnQty(offeredAssetValue);
+const swapConfig = new SwapConfig(askedValueInfo.mph,
+                                  askedValueInfo.tn,
+                                  offeredValueInfo.mph,
+                                  offeredValueInfo.tn,
+                                  beaconMPH.hex,
+                                  bytesToHex(beaconTN),
+                                  seller.pubKeyHash.hex
+                                  ); 
+
+// Initialize with price of 15 Ada and 5 product tokens
+await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig);   
 
 // Create the updated asset value being asked for
 const updatedAskedAssetValue = new Value(BigInt(10_000_000));
@@ -69,13 +88,14 @@ updatedOfferedAsset.addComponent(
 const updatedOfferedAssetValue = new Value(BigInt(0), offeredAsset);
 
 // Change price to 10 Ada and add 5 more product tokens
-await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue); 
+await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig); 
 
 const swapAskedAssetValue = new Value(BigInt(25_000_000));
 
 // Swap 25 Ada and get as many product tokens as possible
-await assetSwap(buyer, seller, swapAskedAssetValue);
+await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig);
 
 // Close the swap position
-await closeSwap(buyer, seller);                              
+await closeSwap(buyer, seller, swapConfig);  
+
 

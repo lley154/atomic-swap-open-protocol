@@ -1,5 +1,6 @@
 import {
   Assets, 
+  bytesToHex,
   MintingPolicyHash,
   Value,
   textToBytes
@@ -7,10 +8,14 @@ import {
 
 import {
     assetSwap,
+    beaconMPH,
+    beaconTN,
     closeSwap,
     initSwap,
+    getMphTnQty,
     minAda,
-    network
+    network,
+    SwapConfig
 } from "./swap-simulator.mjs"
 
 // Create seller wallet - we add 10ADA to start
@@ -75,8 +80,20 @@ usdaTokenAsset.addComponent(
 
 const askedAssetValue = new Value(BigInt(0), usdaTokenAsset);
 
+// Create the swap config
+const askedValueInfo = await getMphTnQty(askedAssetValue);
+const offeredValueInfo = await getMphTnQty(offeredAssetValue);
+const swapConfig = new SwapConfig(askedValueInfo.mph,
+                                  askedValueInfo.tn,
+                                  offeredValueInfo.mph,
+                                  offeredValueInfo.tn,
+                                  beaconMPH.hex,
+                                  bytesToHex(beaconTN),
+                                  seller.pubKeyHash.hex
+                                  ); 
+
 // Initialize with price of 20 usda tokens with 5 product tokens
-await initSwap(buyer, seller, askedAssetValue, offeredAssetValue);   
+await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig);   
 
 // Create usda token for swap asset
 const swapUSDATokenAsset = new Assets();
@@ -89,8 +106,8 @@ swapUSDATokenAsset.addComponent(
 const swapAskedAssetValue = new Value(minAda, swapUSDATokenAsset);
 
 // Swap 50 usda tokens and get as many product tokens as possible
-await assetSwap(buyer, seller, swapAskedAssetValue);  
+await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig);  
 
 // Close the swap position
-await closeSwap(buyer, seller);
+await closeSwap(buyer, seller, swapConfig);
 

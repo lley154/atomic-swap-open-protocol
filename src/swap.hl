@@ -11,6 +11,15 @@ enum Redeemer {
     Update 
 }
 
+const ASKED_MPH: ByteArray = #abc123
+const ASKED_TN: ByteArray = #abc123
+const OFFERED_MPH: ByteArray = #abc123
+const OFFERED_TN: ByteArray = #abc123
+const BEACON_MPH: ByteArray = #abc123
+const BEACON_TN: ByteArray = #abc123
+const SELLER_PKH: ByteArray = #abc123
+
+
 func main(_, _, _) -> Bool {
     print("swap contract");
     true
