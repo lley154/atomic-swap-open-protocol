@@ -1,7 +1,6 @@
 import {
     Address,
     Assets, 
-    bytesToHex,
     MintingPolicyHash,
     Value,
     textToBytes
@@ -9,14 +8,13 @@ import {
 
 import {
     approveEscrow,
-    assetSwapEscrow,
     beaconMPH,
-    beaconTN,
     closeSwap,
     escrowProgram,
     EscrowConfig,
     initSwap,
     getMphTnQty,
+    mediator,
     minAda,
     multiAssetSwapEscrow,
     optimize,
@@ -33,9 +31,6 @@ const sellerProduct = network.createWallet(BigInt(10_000_000));
 
 // Create buyer wallet - we add 10ADA to start
 const buyer = network.createWallet(BigInt(10_000_000));
-
-// Create mediator wallet - we add 10ADA to start
-const mediator = network.createWallet(BigInt(10_000_000));
 
 // Create product token to buy
 const productMPH = MintingPolicyHash.fromHex(
@@ -90,7 +85,6 @@ const swapConfigUSDA = new SwapConfig(askedAdaValueInfo.mph,
                                   offeredUSDAValueInfo.mph,
                                   offeredUSDAValueInfo.tn,
                                   beaconMPH.hex,
-                                  bytesToHex(beaconTN),
                                   sellerUSDA.pubKeyHash.hex,
                                   false, // escrow not enabled
                                   ""     // escrow address n/a 
@@ -154,7 +148,6 @@ const swapConfigProduct = new SwapConfig(askedValueInfo.mph,
                                   offeredValueInfo.mph,
                                   offeredValueInfo.tn,
                                   beaconMPH.hex,
-                                  bytesToHex(beaconTN),
                                   sellerProduct.pubKeyHash.hex,
                                   true, // set escrow enabled to true
                                   escrowAddress.toHex()
@@ -176,7 +169,6 @@ swapUSDATokenAsset.addComponent(
 const swapAskedAssetUSDAValue = new Value(minAda, swapUSDATokenAsset);
 
 // Swap 50 USDA and get as many product tokens as possible
-//await assetSwap(buyer, sellerUSDA, swapAskedAssetAdaValue);
 const orderId = await multiAssetSwapEscrow(buyer, 
                      sellerUSDA,
                      swapAskedAssetAdaValue, 
@@ -185,9 +177,6 @@ const orderId = await multiAssetSwapEscrow(buyer,
                      swapAskedAssetUSDAValue,
                      swapConfigProduct,
                      escrowConfig);
-
-// Swap 50 usda coins and get as many product tokens as possible
-//const order_id = await assetSwapEscrow(buyer, sellerProduct, swapAskedAssetAdaValue, swapAskedAssetUSDAValue);
 
 // Approve the escrow for a given order id
 await approveEscrow(orderId, buyer, sellerProduct, escrowConfig);

@@ -9,7 +9,6 @@ import {
 import {
     assetSwap,
     beaconMPH,
-    beaconTN,
     closeSwap,
     initSwap,
     getMphTnQty,
@@ -89,7 +88,6 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   offeredValueInfo.mph,
                                   offeredValueInfo.tn,
                                   beaconMPH.hex,
-                                  bytesToHex(beaconTN),
                                   seller.pubKeyHash.hex,
                                   false, // escrow not enabled
                                   ""     // escrow address n/a 

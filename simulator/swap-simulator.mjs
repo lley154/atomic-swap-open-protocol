@@ -5,7 +5,6 @@ import {
   Assets, 
   bytesToHex,
   Datum,
-  MintingPolicyHash,
   NetworkEmulator,
   NetworkParams, 
   Program,
@@ -23,12 +22,12 @@ export {
     assetSwap,
     assetSwapEscrow,
     beaconMPH,
-    beaconTN,
     closeSwap,
     escrowProgram,
     EscrowConfig,
     initSwap,
     getMphTnQty,
+    mediator,
     minAda,
     multiAssetSwapEscrow,
     optimize,
@@ -53,6 +52,9 @@ const minAda = BigInt(2_000_000);        // minimum lovelace needed to send a to
 const minChangeAda = BigInt(1_000_000);  // minimum lovelace needed to send back as change
 const deposit = BigInt(5_000_000)        // 5 Ada deposit for escrow
 
+// Create mediator wallet - we add 10ADA to start
+const mediator = network.createWallet(BigInt(10_000_000));
+
 // Create a new program swap script
 const swapScript = await fs.readFile('./src/swap.hl', 'utf8');
 const swapProgram = Program.new(swapScript);
@@ -65,8 +67,7 @@ class SwapConfig {
                 askedTN, 
                 offeredMPH, 
                 offeredTN, 
-                beaconMPH, 
-                beaconTN, 
+                beaconMPH,  
                 sellerPKH,
                 escrowEnabled,
                 escrowAddr) {
@@ -75,7 +76,6 @@ class SwapConfig {
       this.offeredMPH = offeredMPH;
       this.offeredTN = offeredTN;
       this.beaconMPH = beaconMPH;
-      this.beaconTN = beaconTN;
       this.sellerPKH = sellerPKH;
       this.escrowEnabled = escrowEnabled;
       this.escrowAddr = escrowAddr;
@@ -100,14 +100,9 @@ class EscrowConfig {
 // Compile the Beacon minting script
 const beaconScript = await fs.readFile('./src/beacon.hl', 'utf8');
 const beaconProgram = Program.new(beaconScript);
+beaconProgram.parameters = {["MEDIATOR_PKH"] : mediator.pubKeyHash.hex};
 const beaconCompiledProgram = beaconProgram.compile(optimize);
 const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
-
-// Construct the Beacon asset
-const beaconTN = textToBytes("Beacon Token");
-const beaconToken = [[beaconTN, BigInt(1)]];
-const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
-const beaconValue = new Value(BigInt(0), beaconAsset);
 
 // Compile the Points minting script
 const pointsScript = await fs.readFile('./src/points.hl', 'utf8');
@@ -171,7 +166,6 @@ const showSwapScriptUTXOs = async (swapConfig) => {
     swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
     swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
     swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-    swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
     swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
@@ -180,7 +174,7 @@ const showSwapScriptUTXOs = async (swapConfig) => {
     const swapScriptAddr = Address.fromHashes(swapCompiledProgram.validatorHash);
     const swapUtxos = await network.getUtxos(swapScriptAddr);
     console.log("");
-    console.log("Swap Script Address: ", swapScriptAddr.toBech32());
+    console.log("Swap Script Hash: ", swapCompiledProgram.validatorHash.hex);
     console.log("Swap Script UTXOs:");
     console.log("------------------");
     for (const utxo of swapUtxos) {
@@ -230,7 +224,6 @@ const getSwapUTXO = async (swapConfig) => {
     swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
     swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
     swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-    swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
     swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
@@ -537,7 +530,6 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-        swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
@@ -559,6 +551,12 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
         // a plutus script transaction even if we don't actually use it.
         const beaconRedeemer = (new beaconProgram.types.Redeemer.Mint())._toUplcData();
 
+        // Construct the Beacon asset
+        const beaconTN = swapCompiledProgram.validatorHash.hex;
+        const beaconToken = [[beaconTN, BigInt(1)]];
+        const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
+        const beaconValue = new Value(BigInt(0), beaconAsset);
+        
         // Add the mint to the tx
         tx.mintTokens(
             beaconMPH,
@@ -633,7 +631,6 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-        swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
@@ -672,6 +669,12 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
             askedAssetValue,
             updatedOfferedAssetValue
           )
+        
+        // Construct the Beacon asset
+        const beaconTN = swapCompiledProgram.validatorHash.hex;
+        const beaconToken = [[beaconTN, BigInt(1)]];
+        const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
+        const beaconValue = new Value(BigInt(0), beaconAsset);
         
         const swapValue = updatedOfferedAssetValue.add(beaconValue);
         tx.addOutput(new TxOutput(
@@ -735,7 +738,6 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig) => {
          swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
          swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
          swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-         swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
          swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
          swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
          swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
@@ -774,6 +776,12 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig) => {
             orderDetails.askedAssetVal,     // askedAsset
             orderDetails.offeredAssetVal    // offeredAsset
           )
+        
+        // Construct the Beacon asset
+        const beaconTN = swapCompiledProgram.validatorHash.hex;
+        const beaconToken = [[beaconTN, BigInt(1)]];
+        const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
+        const beaconValue = new Value(BigInt(0), beaconAsset);
         
         const swapValue = orderDetails.offeredAssetVal.add(beaconValue);
         tx.addOutput(new TxOutput(
@@ -869,7 +877,6 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-        swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
@@ -908,6 +915,12 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
             orderDetails.askedAssetVal,     // askedAsset
             orderDetails.offeredAssetVal    // offeredAsset
           )
+
+        // Construct the Beacon asset
+        const beaconTN = swapCompiledProgram.validatorHash.hex;
+        const beaconToken = [[beaconTN, BigInt(1)]];
+        const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
+        const beaconValue = new Value(BigInt(0), beaconAsset);
         
         const swapValue = orderDetails.offeredAssetVal.add(beaconValue);
         tx.addOutput(new TxOutput(
@@ -1027,7 +1040,6 @@ const multiAssetSwapEscrow = async (buyer,
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfigUSDA.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfigUSDA.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfigUSDA.beaconMPH};
-        swapProgram.parameters = {["BEACON_TN"] : swapConfigUSDA.beaconTN};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfigUSDA.sellerPKH};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfigUSDA.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfigUSDA.escrowAddr};
@@ -1066,8 +1078,14 @@ const multiAssetSwapEscrow = async (buyer,
             orderDetailsUSDA.askedAssetVal,     // askedAsset
             orderDetailsUSDA.offeredAssetVal    // offeredAsset
           )
+
+        // Construct the Beacon asset
+        const beaconTNUSDA = swapCompiledProgramUSDA.validatorHash.hex;
+        const beaconTokenUSDA = [[beaconTNUSDA, BigInt(1)]];
+        const beaconAssetUSDA = new Assets([[beaconMPH, beaconTokenUSDA]]);
+        const beaconValueUSDA = new Value(BigInt(0), beaconAssetUSDA);
         
-        const swapValueUSDA = orderDetailsUSDA.offeredAssetVal.add(beaconValue);
+        const swapValueUSDA = orderDetailsUSDA.offeredAssetVal.add(beaconValueUSDA);
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgramUSDA.validatorHash),
             swapValueUSDA,
@@ -1105,7 +1123,6 @@ const multiAssetSwapEscrow = async (buyer,
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfigProduct.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfigProduct.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfigProduct.beaconMPH};
-        swapProgram.parameters = {["BEACON_TN"] : swapConfigProduct.beaconTN};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfigProduct.sellerPKH};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfigProduct.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfigProduct.escrowAddr};
@@ -1135,8 +1152,14 @@ const multiAssetSwapEscrow = async (buyer,
             orderDetailsProduct.askedAssetVal,     // askedAsset
             orderDetailsProduct.offeredAssetVal    // offeredAsset
           )
+
+        // Construct the Beacon asset
+        const beaconTNProduct = swapCompiledProgramProduct.validatorHash.hex;
+        const beaconTokenProduct = [[beaconTNProduct, BigInt(1)]];
+        const beaconAssetProduct = new Assets([[beaconMPH, beaconTokenProduct]]);
+        const beaconValueProduct = new Value(BigInt(0), beaconAssetProduct);
         
-        const swapValueProduct = orderDetailsProduct.offeredAssetVal.add(beaconValue);
+        const swapValueProduct = orderDetailsProduct.offeredAssetVal.add(beaconValueProduct);
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgramProduct.validatorHash),
             swapValueProduct,
@@ -1375,7 +1398,6 @@ const closeSwap = async (seller, swapConfig) => {
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-        swapProgram.parameters = {["BEACON_TN"] : swapConfig.beaconTN};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
         const swapCompiledProgram = swapProgram.compile(optimize); 
 
@@ -1406,6 +1428,7 @@ const closeSwap = async (seller, swapConfig) => {
         const beaconRedeemer = (new beaconProgram.types.Redeemer.Burn())._toUplcData();
 
         // Create beacon token for burning
+        const beaconTN = swapCompiledProgram.validatorHash.hex;
         const beaconToken = [[beaconTN, BigInt(-1)]];
 
         // Add the mint to the tx

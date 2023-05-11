@@ -11,12 +11,12 @@ import {
     approveEscrow,
     assetSwapEscrow,
     beaconMPH,
-    beaconTN,
     closeSwap,
     escrowProgram,
     EscrowConfig,
     initSwap,
     getMphTnQty,
+    mediator,
     minAda,
     optimize,
     network,
@@ -29,9 +29,6 @@ const seller = network.createWallet(BigInt(10_000_000));
 
 // Create buyer wallet - we add 10ADA to start
 const buyer = network.createWallet(BigInt(10_000_000));
-
-// Create mediator wallet - we add 10ADA to start
-const mediator = network.createWallet(BigInt(10_000_000));
 
 // Create product token to buy
 const productMPH = MintingPolicyHash.fromHex(
@@ -108,7 +105,6 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   offeredValueInfo.mph,
                                   offeredValueInfo.tn,
                                   beaconMPH.hex,
-                                  bytesToHex(beaconTN),
                                   seller.pubKeyHash.hex,
                                   true, // set escrow enabled to true
                                   escrowAddress.toHex()
@@ -134,6 +130,6 @@ const orderId = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapCo
 await approveEscrow(orderId, buyer, seller, escrowConfig);
 
 // Close the swap position
-await closeSwap(buyer, seller, swapConfig);
+await closeSwap(seller, swapConfig);
 showWalletUTXOs("Buyer", buyer);   
 

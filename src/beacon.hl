@@ -5,6 +5,9 @@ enum Redeemer {
     Burn 
 }
 
+// Beacon minting script parameters
+const MEDIATOR_PKH: ByteArray = #
+
 func main(_, _) -> Bool {
     print("beacon minting");
     true

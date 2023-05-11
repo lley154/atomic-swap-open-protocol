@@ -11,15 +11,15 @@ enum Redeemer {
     Update 
 }
 
-const ASKED_MPH: ByteArray = #abc123
-const ASKED_TN: ByteArray = #abc123
-const OFFERED_MPH: ByteArray = #abc123
-const OFFERED_TN: ByteArray = #abc123
-const BEACON_MPH: ByteArray = #abc123
-const BEACON_TN: ByteArray = #abc123
-const SELLER_PKH: ByteArray = #abc123
+// Swap validator script parameters
+const ASKED_MPH: ByteArray = #
+const ASKED_TN: ByteArray = #
+const OFFERED_MPH: ByteArray = #
+const OFFERED_TN: ByteArray = #
+const BEACON_MPH: ByteArray = #
+const SELLER_PKH: ByteArray = #
 const ESCROW_ENABLED: Bool = false
-const ESCROW_ADDR: ByteArray = #abc123 
+const ESCROW_ADDR: ByteArray = # 
 
 func main(_, _, _) -> Bool {
     print("swap contract");
