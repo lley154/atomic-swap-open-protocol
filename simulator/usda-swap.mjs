@@ -7,8 +7,7 @@ import {
 } from "@hyperionbt/helios";
 
 import {
-    approveEscrow,
-    assetSwapEscrow,
+    assetSwap,
     beaconMPH,
     beaconTN,
     closeSwap,
@@ -16,7 +15,8 @@ import {
     getMphTnQty,
     minAda,
     network,
-    SwapConfig
+    SwapConfig,
+    showWalletUTXOs
 } from "./swap-simulator.mjs"
 
 // Create seller wallet - we add 10ADA to start
@@ -57,7 +57,7 @@ const usdaTokenMPH = MintingPolicyHash.fromHex(
     );
 const usdaTokenTN =  textToBytes('USDA Token');
 
-// Create usda tokens and add them to the buyers wallet
+// Create usda tokens in buyer wallet
 const buyerUSDATokenAsset = new Assets();
 buyerUSDATokenAsset.addComponent(
     usdaTokenMPH,
@@ -65,7 +65,7 @@ buyerUSDATokenAsset.addComponent(
     BigInt(50)
 );
 
-// Add Product Token to the seller wallet
+// Add usda token to the buyer wallet
 network.createUtxo(buyer, minAda, buyerUSDATokenAsset);
 
 // Now lets tick the network on 10 slots
@@ -90,13 +90,15 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   offeredValueInfo.tn,
                                   beaconMPH.hex,
                                   bytesToHex(beaconTN),
-                                  seller.pubKeyHash.hex
+                                  seller.pubKeyHash.hex,
+                                  false, // escrow not enabled
+                                  ""     // escrow address n/a 
                                   ); 
 
 // Initialize with price of 20 usda tokens with 5 product tokens
 await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig);   
 
-// Create usda token value for swap asset
+// Create usda token for swap asset
 const swapUSDATokenAsset = new Assets();
 swapUSDATokenAsset.addComponent(
     usdaTokenMPH,
@@ -106,12 +108,10 @@ swapUSDATokenAsset.addComponent(
 
 const swapAskedAssetValue = new Value(minAda, swapUSDATokenAsset);
 
-// Swap 50 usda coins and get as many product tokens as possible
-const order_id = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapConfig);
-
-// Approve the escrow for a given order id
-await approveEscrow(buyer, seller, order_id, swapConfig);
+// Swap 50 usda tokens and get as many product tokens as possible
+await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig);  
 
 // Close the swap position
-await closeSwap(buyer, seller, swapConfig);    
+await closeSwap(seller, swapConfig);
+showWalletUTXOs("Buyer", buyer);
 

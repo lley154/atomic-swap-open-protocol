@@ -1,9 +1,10 @@
 import {
-  Assets, 
-  bytesToHex,
-  MintingPolicyHash,
-  Value,
-  textToBytes
+    Address,
+    Assets, 
+    bytesToHex,
+    MintingPolicyHash,
+    Value,
+    textToBytes
 } from "@hyperionbt/helios";
 
 import {
@@ -12,11 +13,15 @@ import {
     beaconMPH,
     beaconTN,
     closeSwap,
+    escrowProgram,
+    EscrowConfig,
     initSwap,
     getMphTnQty,
     minAda,
+    optimize,
     network,
     SwapConfig,
+    showWalletUTXOs,
     updateSwap
 } from "./swap-simulator.mjs"
 
@@ -25,6 +30,9 @@ const seller = network.createWallet(BigInt(10_000_000));
 
 // Create buyer wallet - we add 10ADA to start
 const buyer = network.createWallet(BigInt(10_000_000));
+
+// Create mediator wallet - we add 10ADA to start
+const mediator = network.createWallet(BigInt(10_000_000));
 
 // Create the asset value being asked for
 const askedAssetValue = new Value(BigInt(15_000_000));
@@ -61,7 +69,18 @@ offeredAsset.addComponent(
 );
 const offeredAssetValue = new Value(BigInt(0), offeredAsset);
 
-// Create the swap config
+const escrowConfig = new EscrowConfig(buyer.pubKeyHash.hex,
+                                      seller.pubKeyHash.hex,
+                                      mediator.pubKeyHash.hex);
+
+// Create the escrow config parameters
+escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPKH};
+escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
+escrowProgram.parameters = {["MEDIATOR_PKH"] : escrowConfig.mediatorPKH};
+const escrowCompiledProgram = escrowProgram.compile(optimize);
+const escrowAddress = Address.fromHashes(escrowCompiledProgram.validatorHash);                                   
+
+// Create the swap config parameters
 const askedValueInfo = await getMphTnQty(askedAssetValue);
 const offeredValueInfo = await getMphTnQty(offeredAssetValue);
 const swapConfig = new SwapConfig(askedValueInfo.mph,
@@ -70,8 +89,11 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   offeredValueInfo.tn,
                                   beaconMPH.hex,
                                   bytesToHex(beaconTN),
-                                  seller.pubKeyHash.hex
+                                  seller.pubKeyHash.hex,
+                                  true, // set escrow enabled to true
+                                  escrowAddress.toHex()
                                   );
+
 
 // Initialize with price of 15 Ada and 5 product tokens
 await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig);   
@@ -94,10 +116,11 @@ await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue
 const swapAskedAssetValue = new Value(BigInt(25_000_000));
 
 // Swap 25 Ada and get as many product tokens as possible
-const order_id = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapConfig);
+const orderId = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapConfig, escrowConfig);
 
 // Approve the escrow for a given order id
-await approveEscrow(buyer, seller, order_id, swapConfig);   
+await approveEscrow(orderId, buyer, seller, escrowConfig);   
 
 // Close the swap position
-await closeSwap(buyer, seller, swapConfig);
+await closeSwap(seller, swapConfig);
+showWalletUTXOs("Buyer", buyer);

@@ -18,7 +18,8 @@ const OFFERED_TN: ByteArray = #abc123
 const BEACON_MPH: ByteArray = #abc123
 const BEACON_TN: ByteArray = #abc123
 const SELLER_PKH: ByteArray = #abc123
-
+const ESCROW_ENABLED: Bool = false
+const ESCROW_ADDR: ByteArray = #abc123 
 
 func main(_, _, _) -> Bool {
     print("swap contract");

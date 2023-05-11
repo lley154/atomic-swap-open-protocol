@@ -3,7 +3,7 @@ import {
   bytesToHex,
   MintingPolicyHash,
   Value,
-  textToBytes
+  textToBytes, 
 } from "@hyperionbt/helios";
 
 import {
@@ -15,7 +15,9 @@ import {
     getMphTnQty,
     minAda,
     network,
-    SwapConfig
+    SwapConfig,
+    showWalletUTXOs,
+    updateSwap
 } from "./swap-simulator.mjs"
 
 // Create seller wallet - we add 10ADA to start
@@ -24,7 +26,10 @@ const seller = network.createWallet(BigInt(10_000_000));
 // Create buyer wallet - we add 10ADA to start
 const buyer = network.createWallet(BigInt(10_000_000));
 
-// Create product token to buy
+// Create the asset value being asked for
+const askedAssetValue = new Value(BigInt(15_000_000));
+
+// Create product token value to buy
 const productMPH = MintingPolicyHash.fromHex(
     '16aa5486dab6527c4697387736ae449411c03dcd20a3950453e6779c'
     );
@@ -38,8 +43,14 @@ productAsset.addComponent(
     BigInt(10)
 );
 
-// Add Product Token to the seller wallet
+// Add product token to the seller wallet
 network.createUtxo(seller, minAda, productAsset);
+
+// Create buyer wallet - add 100ADA for swap
+network.createUtxo(buyer, BigInt(100_000_000));
+
+// Now lets tick the network on 10 slots,
+network.tick(BigInt(10));
 
 // Create asset value to be offered
 const offeredAsset = new Assets();
@@ -50,36 +61,6 @@ offeredAsset.addComponent(
 );
 const offeredAssetValue = new Value(BigInt(0), offeredAsset);
 
-// Create a usda token to use as medium of exchange
-const usdaTokenMPH = MintingPolicyHash.fromHex(
-    '23aa5486dab6527c4697387736ae449411c03dcd20a3950453e6777e'
-    );
-const usdaTokenTN =  textToBytes('USDA Token');
-
-// Create usda tokens in buyer wallet
-const buyerUSDATokenAsset = new Assets();
-buyerUSDATokenAsset.addComponent(
-    usdaTokenMPH,
-    usdaTokenTN,
-    BigInt(50)
-);
-
-// Add usda token to the buyer wallet
-network.createUtxo(buyer, minAda, buyerUSDATokenAsset);
-
-// Now lets tick the network on 10 slots
-network.tick(BigInt(10));
-
-// Create usda tokens to for askedAssets
-const usdaTokenAsset = new Assets();
-usdaTokenAsset.addComponent(
-    usdaTokenMPH,
-    usdaTokenTN,
-    BigInt(20)
-);
-
-const askedAssetValue = new Value(BigInt(0), usdaTokenAsset);
-
 // Create the swap config
 const askedValueInfo = await getMphTnQty(askedAssetValue);
 const offeredValueInfo = await getMphTnQty(offeredAssetValue);
@@ -89,25 +70,36 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   offeredValueInfo.tn,
                                   beaconMPH.hex,
                                   bytesToHex(beaconTN),
-                                  seller.pubKeyHash.hex
+                                  seller.pubKeyHash.hex,
+                                  false, // escrow not enabled
+                                  ""     // escrow address n/a 
                                   ); 
 
-// Initialize with price of 20 usda tokens with 5 product tokens
+// Initialize with price of 15 Ada and 5 product tokens
 await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig);   
 
-// Create usda token for swap asset
-const swapUSDATokenAsset = new Assets();
-swapUSDATokenAsset.addComponent(
-    usdaTokenMPH,
-    usdaTokenTN,
-    BigInt(50)
+// Create the updated asset value being asked for
+const updatedAskedAssetValue = new Value(BigInt(10_000_000));
+
+// Create the additional asset value to be offered
+const updatedOfferedAsset = new Assets();
+updatedOfferedAsset.addComponent(
+    productMPH,
+    productTN,
+    BigInt(5)
 );
+const updatedOfferedAssetValue = new Value(BigInt(0), offeredAsset);
 
-const swapAskedAssetValue = new Value(minAda, swapUSDATokenAsset);
+// Change price to 10 Ada and add 5 more product tokens
+await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig); 
 
-// Swap 50 usda tokens and get as many product tokens as possible
-await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig);  
+const swapAskedAssetValue = new Value(BigInt(25_000_000));
+
+// Swap 25 Ada and get as many product tokens as possible
+await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig);
 
 // Close the swap position
-await closeSwap(buyer, seller, swapConfig);
+await closeSwap(seller, swapConfig);  
+showWalletUTXOs("Buyer", buyer);
+
 

@@ -15,6 +15,10 @@ enum Redeemer {
     Process 
 }
 
+const BUYER_PKH: ByteArray = #abc123
+const SELLER_PKH: ByteArray = #abc123
+const MEDIATOR_PKH: ByteArray = #abc123
+
 func main(_, _, _) -> Bool {
     print("escrow contract");
     true
