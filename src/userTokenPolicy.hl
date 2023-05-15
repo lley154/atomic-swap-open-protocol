@@ -1,0 +1,48 @@
+minting userTokenPolicy
+
+enum Redeemer { 
+    Mint {
+        pkhBA: ByteArray
+        timestampBA: ByteArray
+        qty: Int
+    }
+    Burn 
+}
+
+// User minting script parameters
+const APP_PKH: ByteArray = #
+const appPkh: PubKeyHash = PubKeyHash::new(APP_PKH)
+const USER_PKH: ByteArray = #
+const userPkh: PubKeyHash = PubKeyHash::new(USER_PKH)
+
+func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
+    
+    tx : Tx = ctx.tx;
+
+    redeemer.switch {
+        red: Mint => {
+            tn: ByteArray =  red.pkhBA + red.timestampBA;
+            userTokenAssetclass: AssetClass = AssetClass::new(
+                ctx.get_current_minting_policy_hash(), 
+                tn
+            );
+            userTokenVal : Value = Value::new(userTokenAssetclass, red.qty);
+            print("tx.minted: " + tx.minted.show());
+            print("USER_PKH: "+ USER_PKH.show());
+            print("userTokenVal: "+ userTokenVal.show());
+            print("red.pkhBA: " + red.pkhBA.decode_utf8());
+            print("red timestamp: " + red.timestampBA.show());
+            print("red qty: " + red.qty.show());
+            //redUserPkh: PubKeyHash = PubKeyHash::new(red.pkhBA);
+            print("userPkh: " + userPkh.show());
+            //print("redpkh: " + redUserPkh.show());
+            ctx.tx.is_signed_by(appPkh).trace("UTP1: ") &&
+            ctx.tx.is_signed_by(userPkh).trace("UTP2: ") &&
+            (userPkh.show() == red.pkhBA.decode_utf8()).trace("UTP3: ") &&
+            (tx.minted == userTokenVal).trace("UTP4: ")
+        },
+        Burn => { 
+            true 
+        }
+    }
+}

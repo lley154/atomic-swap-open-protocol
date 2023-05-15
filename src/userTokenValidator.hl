@@ -1,0 +1,16 @@
+spending userTokenValidator
+
+enum Redeemer {
+    Mint
+    Burn
+}
+
+// Escrow validator script parameters 
+const USER_PKH: ByteArray = #
+const APP_PKH: ByteArray = #
+
+
+func main(_, _, _) -> Bool {
+    print("userTokenValidator");
+    true
+}

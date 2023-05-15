@@ -4,7 +4,14 @@ import {
   Address,
   Assets, 
   bytesToHex,
+  bytesToText,
+  ByteArrayData,
+  CborData,
+  ConstrData,
   Datum,
+  hexToBytes,
+  IntData,
+  MintingPolicyHash,
   NetworkEmulator,
   NetworkParams, 
   Program,
@@ -15,6 +22,7 @@ import {
   UTxO,
   ByteArray,
   PubKeyHash,
+  WalletEmulator,
 } from "@hyperionbt/helios";
 
 export {
@@ -27,8 +35,9 @@ export {
     EscrowConfig,
     initSwap,
     getMphTnQty,
-    mediator,
+    appWallet,
     minAda,
+    mintUserTokens,
     multiAssetSwapEscrow,
     optimize,
     network,
@@ -49,11 +58,12 @@ let optimize = false;
 
 // Global variables
 const minAda = BigInt(2_000_000);        // minimum lovelace needed to send a token
+const minAdaValue = new Value(minAda);
 const minChangeAda = BigInt(1_000_000);  // minimum lovelace needed to send back as change
 const deposit = BigInt(5_000_000)        // 5 Ada deposit for escrow
 
-// Create mediator wallet - we add 10ADA to start
-const mediator = network.createWallet(BigInt(10_000_000));
+// Create appWallet wallet - we add 10ADA to start
+const appWallet = network.createWallet(BigInt(10_000_000));
 
 // Create a new program swap script
 const swapScript = await fs.readFile('./src/swap.hl', 'utf8');
@@ -70,7 +80,8 @@ class SwapConfig {
                 beaconMPH,  
                 sellerPKH,
                 escrowEnabled,
-                escrowAddr) {
+                escrowAddr,
+                userTokenMPH) {
       this.askedMPH = askedMPH;
       this.askedTN = askedTN;
       this.offeredMPH = offeredMPH;
@@ -79,6 +90,7 @@ class SwapConfig {
       this.sellerPKH = sellerPKH;
       this.escrowEnabled = escrowEnabled;
       this.escrowAddr = escrowAddr;
+      this.userTokenMPH = userTokenMPH;
     }
 }
 
@@ -88,19 +100,19 @@ const escrowProgram = Program.new(escrowScript);
 
 // Define the escrow config object which is used to uniquely create
 // an escrow script address for a given buyer pkh, seller pkh 
-// and the mediator pkh.
+// and the appWallet pkh.
 class EscrowConfig {
-    constructor(buyerPKH, sellerPKH, mediatorPKH) {
+    constructor(buyerPKH, sellerPKH, appWalletPKH) {
       this.buyerPKH = buyerPKH;
       this.sellerPKH = sellerPKH;
-      this.mediatorPKH = mediatorPKH;
+      this.appWalletPKH = appWalletPKH;
     }
 }
 
 // Compile the Beacon minting script
 const beaconScript = await fs.readFile('./src/beacon.hl', 'utf8');
 const beaconProgram = Program.new(beaconScript);
-beaconProgram.parameters = {["MEDIATOR_PKH"] : mediator.pubKeyHash.hex};
+beaconProgram.parameters = {["APP_WALLET_PKH"] : appWallet.pubKeyHash.hex};
 const beaconCompiledProgram = beaconProgram.compile(optimize);
 const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
 
@@ -123,6 +135,14 @@ const rewardsMPH = rewardsCompiledProgram.mintingPolicyHash;
 // Construct the Rewards asset
 const rewardsTN =  textToBytes("Rewards Token");
 const rewardsToken = [[rewardsTN, BigInt(1)]];
+
+// Read in the user token minting script
+const userTokenPolicyScript = await fs.readFile('./src/userTokenPolicy.hl', 'utf8');
+const userTokenPolicyProgram = Program.new(userTokenPolicyScript);
+
+// Read in the user token validator script
+const userTokenValScript = await fs.readFile('./src/userTokenValidator.hl', 'utf8');
+const userTokenValProgram = Program.new(userTokenValScript);
 
 /**
  * Throws an error if 'cond' is false.
@@ -169,6 +189,7 @@ const showSwapScriptUTXOs = async (swapConfig) => {
     swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
+    swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
     const swapCompiledProgram = swapProgram.compile(optimize);
 
     const swapScriptAddr = Address.fromHashes(swapCompiledProgram.validatorHash);
@@ -195,7 +216,7 @@ const showEscrowScriptUTXOs = async (escrowConfig) => {
 
     escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPKH};
     escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
-    escrowProgram.parameters = {["MEDIATOR_PKH"] : escrowConfig.mediatorPKH};
+    escrowProgram.parameters = {["APP_WALLET_PKH"] : escrowConfig.appWalletPKH};
     const escrowCompiledProgram = escrowProgram.compile(optimize);
 
     const escrowUtxos = await network.getUtxos(Address.fromHashes(escrowCompiledProgram.validatorHash));
@@ -203,6 +224,28 @@ const showEscrowScriptUTXOs = async (escrowConfig) => {
     console.log("Escrow Script UTXOs:");
     console.log("------------------");
     for (const utxo of escrowUtxos) {
+        console.log("txId", utxo.txId.hex + "#" + utxo.utxoIdx);
+        console.log("value", utxo.value.dump());
+        if (utxo.origOutput.datum) {
+            console.log("datum", utxo.origOutput.datum.data.toSchemaJson());
+        }
+    }
+}
+
+
+/**
+ * Prints out the UTXOs at the swap script address
+ * @param {Address} address
+ * @param {string} name
+ * @package
+ */
+const showScriptUTXOs = async (address, name) => {
+
+    const utxos = await network.getUtxos(address);
+    console.log("");
+    console.log(name + " Script UTXOs:");
+    console.log("------------------");
+    for (const utxo of utxos) {
         console.log("txId", utxo.txId.hex + "#" + utxo.utxoIdx);
         console.log("value", utxo.value.dump());
         if (utxo.origOutput.datum) {
@@ -227,6 +270,7 @@ const getSwapUTXO = async (swapConfig) => {
     swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
+    swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
     const swapCompiledProgram = swapProgram.compile(optimize);
 
     const swapUtxos = await network.getUtxos(Address.fromHashes(swapCompiledProgram.validatorHash));
@@ -253,7 +297,7 @@ const getEscrowUTXO = async (orderId, buyerPKH, sellerPKH, escrowConfig) => {
     console.log("getEscrowUTXO: ", escrowConfig);
     escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPKH};
     escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
-    escrowProgram.parameters = {["MEDIATOR_PKH"] : escrowConfig.mediatorPKH};
+    escrowProgram.parameters = {["APP_WALLET_PKH"] : escrowConfig.appWalletPKH};
     
     const escrowCompiledProgram = escrowProgram.compile(optimize);
     const escrowUtxos = await network.getUtxos(Address.fromHashes(escrowCompiledProgram.validatorHash));
@@ -509,13 +553,144 @@ const getEscrowDatumInfo = async (utxo) => {
     return datumInfo
 }
 
+
+/**
+ * Mint user tokens including the reference token
+ * @package
+ * @param {WalletEmulator} user
+ * @param {number} qty
+ */
+const mintUserTokens = async (user, qty) => {
+
+    try {
+        console.log("");
+        console.log("************ MINT USER TOKENS ************");
+        console.log("************ PRE-TEST *************");
+        await showWalletUTXOs("User", user);
+
+        // Compile the user token policy script
+        userTokenPolicyProgram.parameters = {["APP_PKH"] : appWallet.pubKeyHash.hex};
+        userTokenPolicyProgram.parameters = {["USER_PKH"] : user.pubKeyHash.hex};
+        const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
+        const userTokenMPH = userTokenPolicyCompiledProgram.mintingPolicyHash;
+
+        // Compile the user token validator script
+        userTokenValProgram.parameters = {["APP_PKH"] : appWallet.pubKeyHash.hex};
+        userTokenValProgram.parameters = {["USER_PKH"] : user.pubKeyHash.hex};
+        const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
+        const userTokenValHash = userTokenValCompiledProgram.validatorHash;
+
+        // Get the UTxOs in User wallet
+        const utxosUser = await network.getUtxos(user.address);
+
+        // Start building the transaction
+        const tx = new Tx();
+
+        // Add the Seller UTXOs as inputs
+        tx.addInputs(utxosUser);
+
+        // Add the user token policy script as a witness to the transaction
+        tx.attachScript(userTokenPolicyCompiledProgram);
+
+        // Construct the user token name
+        const today = " | " + Date.now().toString();
+        const userTokenTN = user.pubKeyHash.hex + today;
+
+        // Create the user token
+        const userToken = [[textToBytes(userTokenTN), BigInt(qty)]];
+        //const userTokenAsset = new Assets([[userTokenMPH, userToken]]);
+
+        // Create the user token poicy redeemer 
+        const userTokenPolicyRedeemer = (new userTokenPolicyProgram
+        .types.Redeemer
+        .Mint(textToBytes(user.pubKeyHash.hex), 
+              textToBytes(today), 
+              BigInt(qty)))
+        ._toUplcData();
+        
+        const pkh = new ByteArrayData(user.pubKeyHash.hex);
+        console.log("pkh test: ", pkh.toSchemaJson());
+
+        // Add the mint to the tx
+        tx.mintTokens(
+            userTokenMPH,
+            userToken,
+            userTokenPolicyRedeemer
+        )
+
+        // Create the output for the reference user token
+        const userTokenRef = [[textToBytes(userTokenTN), BigInt(1)]];
+        const userTokenRefAsset = new Assets([[userTokenMPH, userTokenRef]]);
+        const userTokenRefValue = new Value(minAda, userTokenRefAsset);
+        console.log("userTokenRefValue: ", userTokenRefValue.toSchemaJson());
+        
+        tx.addOutput(new TxOutput(
+            Address.fromHashes(userTokenValHash),
+            userTokenRefValue
+        ));
+        
+        // Create the output for the user tokens
+        assert(qty >= 2);  // must mint a minimum of 2 tokens
+        const userTokenWallet = [[textToBytes(userTokenTN), BigInt(qty - 1)]];
+        const userTokenWalletAsset = new Assets([[userTokenMPH, userTokenWallet]]);
+        const userTokenWalletValue = new Value(minAda, userTokenWalletAsset);
+        console.log("userTokenWalletValue: ", userTokenWalletValue.toSchemaJson());
+        
+        tx.addOutput(new TxOutput(
+            user.address,
+            userTokenWalletValue
+        ));
+
+        // Add app wallet & user pkh as a signer which is required to mint user token
+        tx.addSigner(user.pubKeyHash);
+        tx.addSigner(appWallet.pubKeyHash);
+
+        console.log("");
+        console.log("************ EXECUTE USER TOKEN MINTING CONTRACT ************");
+        await tx.finalize(networkParams, user.address, utxosUser);
+        console.log("Tx Fee", tx.body.fee);
+        console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
+
+        // Sign tx with user signature
+        const signatureUserWallet = await user.signTx(tx);
+        tx.addSignatures(signatureUserWallet);
+
+        // Sign tx with appWallet signature
+        const signatureAppWallet = await appWallet.signTx(tx);
+        tx.addSignatures(signatureAppWallet);
+
+        console.log("");
+        console.log("************ SUBMIT TX ************");
+
+        // Submit Tx to the network
+        const txId = await network.submitTx(tx);
+        console.log("TxId", txId.dump());
+
+        // Tick the network on 10 more slots,
+        network.tick(BigInt(10));
+
+        console.log("");
+        console.log("************ POST-TEST ************");
+        await showWalletUTXOs("User", user);
+        await showScriptUTXOs(Address.fromHashes(userTokenValHash), "User Token");
+        return {
+            mph: userTokenMPH.hex,
+            tn: userTokenTN
+        }
+
+    } catch (err) {
+        console.error("mintUserToken tx failed", err);
+        return false;
+    }
+}
+
 /**
  * Initialize the swap smart contract and mint a beacon token.
  * @package
  * @param {Value} askedAssetValue
  * @param {Value} offeredAssetValue
  */
-const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapConfig) => {
+const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerTokenTN) => {
 
     try {
         console.log("");
@@ -523,6 +698,8 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
         console.log("************ PRE-TEST *************");
         await showWalletUTXOs("Buyer", buyer);
         await showWalletUTXOs("Seller", seller);
+
+        console.log("swapConfg: ", swapConfig);
 
         // Compile the swap script
         swapProgram.parameters = {["ASKED_MPH"] : swapConfig.askedMPH};
@@ -533,6 +710,7 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
+        swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
         const swapCompiledProgram = swapProgram.compile(optimize);  
         
         // Now we are able to get the UTxOs in Buyer & Seller Wallets
@@ -553,7 +731,7 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
 
         // Construct the Beacon asset
         const beaconTN = swapCompiledProgram.validatorHash.hex;
-        const beaconToken = [[beaconTN, BigInt(1)]];
+        const beaconToken = [[hexToBytes(beaconTN), BigInt(1)]];
         const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
         const beaconValue = new Value(BigInt(0), beaconAsset);
         
@@ -563,6 +741,12 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
             beaconToken,
             beaconRedeemer
         )
+
+        // Construct the Seller Token value
+        const sellerToken = [[textToBytes(sellerTokenTN), BigInt(1)]];
+        const sellerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), sellerToken]]);
+        const sellerTokenValue = new Value(BigInt(0), sellerTokenAsset);
+        
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
             askedAssetValue,
@@ -571,18 +755,28 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
         
         // Attach the output with product asset, beacon token
         // and the swap datum to the swap script address
-        const swapValue = (new Value(minAda)).add(offeredAssetValue).add(beaconValue);
+        const swapValue = (new Value(minAda))
+                            .add(offeredAssetValue)
+                            .add(beaconValue)
+                            .add(sellerTokenValue);
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgram.validatorHash),
             swapValue,
             Datum.inline(swapDatum)
         ));
 
+        // Add app wallet pkh as a signer which is required to mint beacon
+        tx.addSigner(appWallet.pubKeyHash);
+
         console.log("");
         console.log("************ EXECUTE BEACON MINTING CONTRACT ************");
         await tx.finalize(networkParams, seller.address, utxosSeller);
         console.log("Tx Fee", tx.body.fee);
         console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
+
+        // Sign tx with appWallet signature
+        const signatureAppWallet = await appWallet.signTx(tx);
+        tx.addSignatures(signatureAppWallet);
 
         console.log("");
         console.log("************ SUBMIT TX ************");
@@ -672,16 +866,19 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         
         // Construct the Beacon asset
         const beaconTN = swapCompiledProgram.validatorHash.hex;
-        const beaconToken = [[beaconTN, BigInt(1)]];
+        const beaconToken = [[hexToBytes(beaconTN), BigInt(1)]];
         const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
         const beaconValue = new Value(BigInt(0), beaconAsset);
         
-        const swapValue = updatedOfferedAssetValue.add(beaconValue);
+        const swapValue = minAdaValue.add(updatedOfferedAssetValue).add(beaconValue);
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgram.validatorHash),
             swapValue,
             Datum.inline(swapDatum)
         ));
+
+        // Add seller wallet pkh as a signer which is required for an update
+        tx.addSigner(seller.pubKeyHash);
 
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
@@ -779,7 +976,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig) => {
         
         // Construct the Beacon asset
         const beaconTN = swapCompiledProgram.validatorHash.hex;
-        const beaconToken = [[beaconTN, BigInt(1)]];
+        const beaconToken = [[hexToBytes(beaconTN), BigInt(1)]];
         const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
         const beaconValue = new Value(BigInt(0), beaconAsset);
         
@@ -868,7 +1065,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         // Compile the escrow script script
         escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPKH};
         escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
-        escrowProgram.parameters = {["MEDIATOR_PKH"] : escrowConfig.mediatorPKH};
+        escrowProgram.parameters = {["APP_WALLET_PKH"] : escrowConfig.appWalletPKH};
         const escrowCompiledProgram = escrowProgram.compile(optimize);
 
         // Compile the swap script
@@ -918,7 +1115,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
 
         // Construct the Beacon asset
         const beaconTN = swapCompiledProgram.validatorHash.hex;
-        const beaconToken = [[beaconTN, BigInt(1)]];
+        const beaconToken = [[hexToBytes(beaconTN), BigInt(1)]];
         const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
         const beaconValue = new Value(BigInt(0), beaconAsset);
         
@@ -1081,7 +1278,7 @@ const multiAssetSwapEscrow = async (buyer,
 
         // Construct the Beacon asset
         const beaconTNUSDA = swapCompiledProgramUSDA.validatorHash.hex;
-        const beaconTokenUSDA = [[beaconTNUSDA, BigInt(1)]];
+        const beaconTokenUSDA = [[hexToBytes(beaconTNUSDA), BigInt(1)]];
         const beaconAssetUSDA = new Assets([[beaconMPH, beaconTokenUSDA]]);
         const beaconValueUSDA = new Value(BigInt(0), beaconAssetUSDA);
         
@@ -1115,7 +1312,7 @@ const multiAssetSwapEscrow = async (buyer,
          */
         escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPKH};
         escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
-        escrowProgram.parameters = {["MEDIATOR_PKH"] : escrowConfig.mediatorPKH};
+        escrowProgram.parameters = {["APP_WALLET_PKH"] : escrowConfig.appWalletPKH};
         const escrowCompiledProgram = escrowProgram.compile(optimize);
 
         swapProgram.parameters = {["ASKED_MPH"] : swapConfigProduct.askedMPH};
@@ -1155,7 +1352,7 @@ const multiAssetSwapEscrow = async (buyer,
 
         // Construct the Beacon asset
         const beaconTNProduct = swapCompiledProgramProduct.validatorHash.hex;
-        const beaconTokenProduct = [[beaconTNProduct, BigInt(1)]];
+        const beaconTokenProduct = [[hexToBytes(beaconTNProduct), BigInt(1)]];
         const beaconAssetProduct = new Assets([[beaconMPH, beaconTokenProduct]]);
         const beaconValueProduct = new Value(BigInt(0), beaconAssetProduct);
         
@@ -1261,7 +1458,7 @@ const approveEscrow = async (orderId, buyer, seller, escrowConfig) => {
 
         escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPKH};
         escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
-        escrowProgram.parameters = {["MEDIATOR_PKH"] : escrowConfig.mediatorPKH};
+        escrowProgram.parameters = {["APP_WALLET_PKH"] : escrowConfig.appWalletPKH};
         const escrowCompiledProgram = escrowProgram.compile(optimize);
 
         // Get the UTxOs in Seller and Buyer Wallet
@@ -1429,7 +1626,7 @@ const closeSwap = async (seller, swapConfig) => {
 
         // Create beacon token for burning
         const beaconTN = swapCompiledProgram.validatorHash.hex;
-        const beaconToken = [[beaconTN, BigInt(-1)]];
+        const beaconToken = [[hexToBytes(beaconTN), BigInt(-1)]];
 
         // Add the mint to the tx
         tx.mintTokens(
@@ -1446,12 +1643,20 @@ const closeSwap = async (seller, swapConfig) => {
             datumInfo.offeredAssetValue
         ));
 
+        // Add app wallet pkh as a signer which is required to burn beacon
+        tx.addSigner(appWallet.pubKeyHash);
+
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
         
         await tx.finalize(networkParams, seller.address, utxosSeller);
         console.log("Tx Fee", tx.body.fee);
         console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
+
+        // Sign tx with appWallet signature
+        const signatureAppWallet = await appWallet.signTx(tx);
+        tx.addSignatures(signatureAppWallet);
+
 
         // Sign tx with sellers signature
         const signatures = await seller.signTx(tx);

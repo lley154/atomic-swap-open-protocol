@@ -1,6 +1,5 @@
 import {
   Assets, 
-  bytesToHex,
   MintingPolicyHash,
   Value,
   textToBytes, 
@@ -13,6 +12,7 @@ import {
     initSwap,
     getMphTnQty,
     minAda,
+    mintUserTokens,
     network,
     SwapConfig,
     showWalletUTXOs,
@@ -24,6 +24,11 @@ const seller = network.createWallet(BigInt(10_000_000));
 
 // Create buyer wallet - we add 10ADA to start
 const buyer = network.createWallet(BigInt(10_000_000));
+
+// Now lets tick the network on 10 slots,
+network.tick(BigInt(10));
+
+const sellerTokens = await mintUserTokens(seller, 25);
 
 // Create the asset value being asked for
 const askedAssetValue = new Value(BigInt(15_000_000));
@@ -70,11 +75,12 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   beaconMPH.hex,
                                   seller.pubKeyHash.hex,
                                   false, // escrow not enabled
-                                  ""     // escrow address n/a 
+                                  "",    // escrow address n/a 
+                                  sellerTokens.mph
                                   ); 
 
 // Initialize with price of 15 Ada and 5 product tokens
-await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig);   
+await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerTokens.tn);   
 
 // Create the updated asset value being asked for
 const updatedAskedAssetValue = new Value(BigInt(10_000_000));
@@ -88,16 +94,18 @@ updatedOfferedAsset.addComponent(
 );
 const updatedOfferedAssetValue = new Value(BigInt(0), offeredAsset);
 
+/*
+
 // Change price to 10 Ada and add 5 more product tokens
 await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig); 
 
 const swapAskedAssetValue = new Value(BigInt(25_000_000));
 
 // Swap 25 Ada and get as many product tokens as possible
-await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig);
+//await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig);
 
 // Close the swap position
-await closeSwap(seller, swapConfig);  
-showWalletUTXOs("Buyer", buyer);
+//await closeSwap(seller, swapConfig);  
+//showWalletUTXOs("Buyer", buyer);
 
-
+*/

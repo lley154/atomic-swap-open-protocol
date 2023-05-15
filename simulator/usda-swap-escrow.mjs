@@ -16,7 +16,7 @@ import {
     EscrowConfig,
     initSwap,
     getMphTnQty,
-    mediator,
+    appWallet,
     minAda,
     optimize,
     network,
@@ -88,12 +88,12 @@ const askedAssetValue = new Value(BigInt(0), usdaTokenAsset);
 
 const escrowConfig = new EscrowConfig(buyer.pubKeyHash.hex,
                                       seller.pubKeyHash.hex,
-                                      mediator.pubKeyHash.hex);
+                                      appWallet.pubKeyHash.hex);
 
 // Create the escrow config parameters
 escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPKH};
 escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
-escrowProgram.parameters = {["MEDIATOR_PKH"] : escrowConfig.mediatorPKH};
+escrowProgram.parameters = {["MEDIATOR_PKH"] : escrowConfig.appWalletPKH};
 const escrowCompiledProgram = escrowProgram.compile(optimize);
 const escrowAddress = Address.fromHashes(escrowCompiledProgram.validatorHash); 
 
