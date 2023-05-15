@@ -28,7 +28,7 @@ const buyer = network.createWallet(BigInt(10_000_000));
 // Now lets tick the network on 10 slots,
 network.tick(BigInt(10));
 
-const sellerTokens = await mintUserTokens(seller, 25);
+const sellerToken = await mintUserTokens(seller, 25);
 
 // Create the asset value being asked for
 const askedAssetValue = new Value(BigInt(15_000_000));
@@ -76,11 +76,11 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   seller.pubKeyHash.hex,
                                   false, // escrow not enabled
                                   "",    // escrow address n/a 
-                                  sellerTokens.mph
+                                  sellerToken.mph
                                   ); 
 
 // Initialize with price of 15 Ada and 5 product tokens
-await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerTokens.tn);   
+await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
 
 // Create the updated asset value being asked for
 const updatedAskedAssetValue = new Value(BigInt(10_000_000));

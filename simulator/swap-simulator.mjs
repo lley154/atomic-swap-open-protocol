@@ -570,13 +570,11 @@ const mintUserTokens = async (user, qty) => {
 
         // Compile the user token policy script
         userTokenPolicyProgram.parameters = {["APP_PKH"] : appWallet.pubKeyHash.hex};
-        userTokenPolicyProgram.parameters = {["USER_PKH"] : user.pubKeyHash.hex};
         const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
         const userTokenMPH = userTokenPolicyCompiledProgram.mintingPolicyHash;
 
         // Compile the user token validator script
         userTokenValProgram.parameters = {["APP_PKH"] : appWallet.pubKeyHash.hex};
-        userTokenValProgram.parameters = {["USER_PKH"] : user.pubKeyHash.hex};
         const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
         const userTokenValHash = userTokenValCompiledProgram.validatorHash;
 
@@ -600,6 +598,7 @@ const mintUserTokens = async (user, qty) => {
         const userToken = [[textToBytes(userTokenTN), BigInt(qty)]];
         //const userTokenAsset = new Assets([[userTokenMPH, userToken]]);
 
+        /*
         // Create the user token poicy redeemer 
         const userTokenPolicyRedeemer = (new userTokenPolicyProgram
         .types.Redeemer
@@ -607,6 +606,15 @@ const mintUserTokens = async (user, qty) => {
               textToBytes(today), 
               BigInt(qty)))
         ._toUplcData();
+        */
+
+        // Create the user token poicy redeemer 
+        const userTokenPolicyRedeemer = (new userTokenPolicyProgram
+            .types.Redeemer
+            .Mint(user.pubKeyHash.hex, 
+                  today, 
+                  BigInt(qty)))
+            ._toUplcData();
         
         const pkh = new ByteArrayData(user.pubKeyHash.hex);
         console.log("pkh test: ", pkh.toSchemaJson());

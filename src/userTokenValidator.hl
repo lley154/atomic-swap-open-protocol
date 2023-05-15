@@ -6,7 +6,6 @@ enum Redeemer {
 }
 
 // Escrow validator script parameters 
-const USER_PKH: ByteArray = #
 const APP_PKH: ByteArray = #
 
 
