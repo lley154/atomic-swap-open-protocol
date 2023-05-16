@@ -20,14 +20,15 @@ import {
 } from "./swap-simulator.mjs"
 
 // Create seller wallet - we add 10ADA to start
-const seller = network.createWallet(BigInt(10_000_000));
+const seller = network.createWallet(BigInt(20_000_000));
 
 // Create buyer wallet - we add 10ADA to start
-const buyer = network.createWallet(BigInt(10_000_000));
+const buyer = network.createWallet(BigInt(20_000_000));
 
 // Now lets tick the network on 10 slots,
 network.tick(BigInt(10));
 
+// Create the seller token
 const sellerToken = await mintUserTokens(seller, 25);
 
 // Create the asset value being asked for
@@ -94,18 +95,18 @@ updatedOfferedAsset.addComponent(
 );
 const updatedOfferedAssetValue = new Value(BigInt(0), offeredAsset);
 
-/*
-
 // Change price to 10 Ada and add 5 more product tokens
-await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig); 
+await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig, sellerToken.tn); 
 
 const swapAskedAssetValue = new Value(BigInt(25_000_000));
 
+// Create the buyer token
+const buyerToken = await mintUserTokens(buyer, 50);
+
 // Swap 25 Ada and get as many product tokens as possible
-//await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig);
+await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, sellerToken.tn, buyerToken.tn);
 
 // Close the swap position
-//await closeSwap(seller, swapConfig);  
+//await closeSwap(seller, swapConfig, sellerToken.tn);  
 //showWalletUTXOs("Buyer", buyer);
 
-*/

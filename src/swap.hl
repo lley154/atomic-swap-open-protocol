@@ -7,7 +7,9 @@ struct Datum {
 
 enum Redeemer {
     Close 
-    Swap
+    Swap {
+        buyerPkh: PubKeyHash
+    }
     Update 
 }
 
@@ -23,9 +25,9 @@ const sellerPkh: PubKeyHash = PubKeyHash::new(SELLER_PKH)
 const ESCROW_ENABLED: Bool = false
 const ESCROW_ADDR: ByteArray = #
 const USER_TOKEN_MPH: ByteArray = #
+const userTokenMph: MintingPolicyHash = MintingPolicyHash::new(USER_TOKEN_MPH)
 
-
-const MIN_ADA: Int = 2_000_000
+const MIN_ADA: Int = 5_000_000
 const minAdaVal: Value = Value::lovelace(MIN_ADA)
 
 func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
@@ -40,29 +42,83 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         beaconTN
     );
     beaconVal : Value = Value::new(beaconAssetclass, 1);
+
+    // Calculate the offered token
+    offeredMph: MintingPolicyHash = MintingPolicyHash::new(OFFERED_MPH);
+    offeredAssetclass: AssetClass = AssetClass::new(
+        offeredMph, 
+        OFFERED_TN
+    );
     
     tx : Tx = ctx.tx;
-    txOutputs : []TxOutput = tx.outputs_locked_by(vHash);
-
+    txOutputsContract : []TxOutput = tx.outputs_locked_by(vHash);
+    
     redeemer.switch {
         Close => { true },
-        Swap => { true },
+        red: Swap => { 
+            txOutputsBuyer : []TxOutput = tx.outputs_sent_to(red.buyerPkh);
+            if (txOutputsContract.length == 1 && txOutputsBuyer.length >= 1) {
+                // Pull out the seller token value
+                sellerToken: Map[ByteArray]Int = txOutputsContract.head.value.get_policy(userTokenMph);   
+                sellerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMph: sellerToken};
+                sellerTokenVal = Value::from_map(sellerTokenMap);
+
+                // Pull out the buyer token value
+                buyerToken: Map[ByteArray]Int = txOutputsBuyer.head.value.get_policy(userTokenMph);   
+                buyerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMph: buyerToken};
+                buyerTokenVal = Value::from_map(buyerTokenMap);
+             
+                txOutputsContract.head.datum.switch {
+                    datumOut: Inline => { 
+                        datumOutData: Datum = Datum::from_data(datumOut.data);
+                        offeredAssetDiffVal: Value = datumIn.offeredAsset - datumOutData.offeredAsset;
+                        offeredAssetDiffQty: Int = offeredAssetDiffVal.get(offeredAssetclass);
+                        swapVal: Value = minAdaVal + datumOutData.offeredAsset + beaconVal + sellerTokenVal;
+                   
+                        (datumIn.askedAsset == datumOutData.askedAsset).trace("SV1: ") &&
+                        (tx.value_locked_by(vHash) == (swapVal)).trace("SV2: ") &&
+                        // Check if askedAsset is in lovelace
+                        (if (datumIn.askedAsset.get_lovelace() == 0) {
+                            (if (ESCROW_ENABLED) {
+                                true
+                            } else {
+                                buyerVal: Value = minAdaVal + offeredAssetDiffVal + buyerTokenVal;
+                                sellerVal: Value =  minAdaVal + datumIn.askedAsset * offeredAssetDiffQty;
+                                print("buyerVal: " + buyerVal.show());
+                                print("sellerVal: " + sellerVal.show());
+                                (buyerVal == txOutputsBuyer.head.value).trace("SV3: ") &&
+                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV4: ")
+                            }) 
+                        } else {
+                            (if (ESCROW_ENABLED) {
+                                true
+                            } else {
+                                buyerVal: Value = minAdaVal + offeredAssetDiffVal + buyerTokenVal;
+                                sellerVal: Value =  datumIn.askedAsset * offeredAssetDiffQty;
+                                print("buyerVal: " + buyerVal.show());
+                                print("sellerVal: " + sellerVal.show());
+                                (buyerVal == txOutputsBuyer.head.value).trace("SV5: ") &&
+                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV6: ")
+                            })
+                        })
+                    },
+                    else => false.trace("no inline datum found: ") // No inline datum found
+                }
+            } else {
+                false.trace("no datum found in outputs: ") // No datum found in outputs
+            }
+        },
         Update => {
-            if (txOutputs.length == 1) {
-                txOutputs.head.datum.switch {
+            if (txOutputsContract.length == 1) {
+                userToken: Map[ByteArray]Int = txOutputsContract.head.value.get_policy(userTokenMph);
+                userTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMph: userToken};
+                userTokenVal = Value::from_map(userTokenMap);
+                txOutputsContract.head.datum.switch {
                     datumOut: Inline => { 
                         datumOutInline: Datum = Datum::from_data(datumOut.data);
-                        print("beaconVal: " + beaconVal.show());
-                        print("datumIn askedAsset: "+ datumIn.askedAsset.show());
-                        print("datumOut askedAsset: "+ datumOutInline.askedAsset.show());
-                        print("datumIn offeredAsset: "+ datumIn.offeredAsset.show());
-                        print("datumOut offeredAsset: "+ datumOutInline.offeredAsset.show());
-                        print("tx.value_locked_by(vHash): "+ tx.value_locked_by(vHash).show());
-                        swapVal: Value = minAdaVal + datumOutInline.offeredAsset + beaconVal;
-                        print("swapVal: "+ swapVal.show());
+                        swapVal: Value = minAdaVal + datumOutInline.offeredAsset + beaconVal + userTokenVal;
                         tx.is_signed_by(sellerPkh).trace("tx signed: ") &&
                         (tx.value_locked_by(vHash) == (swapVal)).trace("output value: ") 
-                        //true
                     },
                     else => false.trace("no inline datum found: ") // No inline datum found
                 }
