@@ -591,7 +591,7 @@ const mintUserTokens = async (user, qty) => {
         tx.attachScript(userTokenPolicyCompiledProgram);
 
         // Construct the user token name
-        const today = " | " + Date.now().toString();
+        const today = "|" + Date.now().toString();
         const userTokenTN = user.pubKeyHash.hex + today;
 
         // Create the user token
@@ -1041,12 +1041,21 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
             ));
         }
 
+        // Add buyer wallet pkh as a signer which is required for an update
+        tx.addSigner(buyer.pubKeyHash);
+
         console.log("");
         console.log("************ EXECUTE SWAP VALIDATOR CONTRACT ************");
         
         await tx.finalize(networkParams, buyer.address, utxosBuyer);
+
+        // Sign tx with buyers signature
+        const signatures = await buyer.signTx(tx);
+        tx.addSignatures(signatures);
+
         console.log("Tx Fee", tx.body.fee);
         console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
+        
 
         console.log("");
         console.log("************ SUBMIT TX ************");

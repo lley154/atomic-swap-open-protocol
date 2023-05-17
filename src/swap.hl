@@ -58,13 +58,16 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         red: Swap => { 
             txOutputsBuyer : []TxOutput = tx.outputs_sent_to(red.buyerPkh);
             if (txOutputsContract.length == 1 && txOutputsBuyer.length >= 1) {
-                // Pull out the seller token value
+                // Pull out the seller token value & tn (pkh)
                 sellerToken: Map[ByteArray]Int = txOutputsContract.head.value.get_policy(userTokenMph);   
+                sellerTN: String = (sellerToken.head_key).slice(0,56).decode_utf8();
                 sellerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMph: sellerToken};
                 sellerTokenVal = Value::from_map(sellerTokenMap);
 
-                // Pull out the buyer token value
+                // Pull out the buyer token value & tn (pkh)
                 buyerToken: Map[ByteArray]Int = txOutputsBuyer.head.value.get_policy(userTokenMph);   
+                buyerTN: String = (buyerToken.head_key).slice(0,56).decode_utf8();
+                //buyerPkh: PubKeyHash = PubKeyHash::new(buyerTN);
                 buyerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMph: buyerToken};
                 buyerTokenVal = Value::from_map(buyerTokenMap);
              
@@ -77,17 +80,20 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                    
                         (datumIn.askedAsset == datumOutData.askedAsset).trace("SV1: ") &&
                         (tx.value_locked_by(vHash) == (swapVal)).trace("SV2: ") &&
-                        // Check if askedAsset is in lovelace
+                        // Check if askedAsset is in lovelace, if not then need to add minAdaVal
                         (if (datumIn.askedAsset.get_lovelace() == 0) {
                             (if (ESCROW_ENABLED) {
                                 true
                             } else {
                                 buyerVal: Value = minAdaVal + offeredAssetDiffVal + buyerTokenVal;
                                 sellerVal: Value =  minAdaVal + datumIn.askedAsset * offeredAssetDiffQty;
+                                buyerPkh: PubKeyHash = tx.signatories.head;
                                 print("buyerVal: " + buyerVal.show());
                                 print("sellerVal: " + sellerVal.show());
                                 (buyerVal == txOutputsBuyer.head.value).trace("SV3: ") &&
-                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV4: ")
+                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV4: ") &&
+                                (sellerTN == SELLER_PKH.show()).trace("SV5: ") &&
+                                (buyerTN == buyerPkh.show()).trace("SV6: ")
                             }) 
                         } else {
                             (if (ESCROW_ENABLED) {
@@ -95,10 +101,15 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                             } else {
                                 buyerVal: Value = minAdaVal + offeredAssetDiffVal + buyerTokenVal;
                                 sellerVal: Value =  datumIn.askedAsset * offeredAssetDiffQty;
+                                buyerPkh: PubKeyHash = tx.signatories.head;
                                 print("buyerVal: " + buyerVal.show());
                                 print("sellerVal: " + sellerVal.show());
-                                (buyerVal == txOutputsBuyer.head.value).trace("SV5: ") &&
-                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV6: ")
+                                print("buyerTN: " + buyerTN);
+                                print("sellerTN: " + sellerTN);
+                                (buyerVal == txOutputsBuyer.head.value).trace("SV7: ") &&
+                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV8: ") &&
+                                (sellerTN == SELLER_PKH.show()).trace("SV9: ") &&
+                                (buyerTN == buyerPkh.show()).trace("SV10: ")
                             })
                         })
                     },
