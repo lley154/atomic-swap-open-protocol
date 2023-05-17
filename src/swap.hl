@@ -26,6 +26,9 @@ const ESCROW_ENABLED: Bool = false
 const ESCROW_ADDR: ByteArray = #
 const USER_TOKEN_MPH: ByteArray = #
 const userTokenMph: MintingPolicyHash = MintingPolicyHash::new(USER_TOKEN_MPH)
+const SERVICE_FEE: Int = 0
+const OWNER_PKH: ByteArray = #
+const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
 const MIN_ADA: Int = 5_000_000
 const minAdaVal: Value = Value::lovelace(MIN_ADA)
@@ -57,6 +60,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         Close => { true },
         red: Swap => { 
             txOutputsBuyer : []TxOutput = tx.outputs_sent_to(red.buyerPkh);
+            txOutputsOwner : []TxOutput = tx.outputs_sent_to(ownerPkh);
             if (txOutputsContract.length == 1 && txOutputsBuyer.length >= 1) {
                 // Pull out the seller token value & tn (pkh)
                 sellerToken: Map[ByteArray]Int = txOutputsContract.head.value.get_policy(userTokenMph);   
@@ -77,6 +81,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         offeredAssetDiffVal: Value = datumIn.offeredAsset - datumOutData.offeredAsset;
                         offeredAssetDiffQty: Int = offeredAssetDiffVal.get(offeredAssetclass);
                         swapVal: Value = minAdaVal + datumOutData.offeredAsset + beaconVal + sellerTokenVal;
+                        feeVal: Value = Value::lovelace(SERVICE_FEE);
                    
                         (datumIn.askedAsset == datumOutData.askedAsset).trace("SV1: ") &&
                         (tx.value_locked_by(vHash) == (swapVal)).trace("SV2: ") &&
@@ -92,8 +97,9 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                                 print("sellerVal: " + sellerVal.show());
                                 (buyerVal == txOutputsBuyer.head.value).trace("SV3: ") &&
                                 (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV4: ") &&
-                                (sellerTN == SELLER_PKH.show()).trace("SV5: ") &&
-                                (buyerTN == buyerPkh.show()).trace("SV6: ")
+                                (feeVal == txOutputsOwner.head.value).trace("SV5: ") &&
+                                (sellerTN == SELLER_PKH.show()).trace("SV6: ") &&
+                                (buyerTN == buyerPkh.show()).trace("SV7: ")
                             }) 
                         } else {
                             (if (ESCROW_ENABLED) {
@@ -106,10 +112,11 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                                 print("sellerVal: " + sellerVal.show());
                                 print("buyerTN: " + buyerTN);
                                 print("sellerTN: " + sellerTN);
-                                (buyerVal == txOutputsBuyer.head.value).trace("SV7: ") &&
-                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV8: ") &&
-                                (sellerTN == SELLER_PKH.show()).trace("SV9: ") &&
-                                (buyerTN == buyerPkh.show()).trace("SV10: ")
+                                (buyerVal == txOutputsBuyer.head.value).trace("SV8: ") &&
+                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV9: ") &&
+                                (feeVal == txOutputsOwner.head.value).trace("SV10: ") &&
+                                (sellerTN == SELLER_PKH.show()).trace("SV11: ") &&
+                                (buyerTN == buyerPkh.show()).trace("SV12: ")
                             })
                         })
                     },

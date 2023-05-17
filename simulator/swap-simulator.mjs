@@ -81,7 +81,9 @@ class SwapConfig {
                 sellerPKH,
                 escrowEnabled,
                 escrowAddr,
-                userTokenMPH) {
+                userTokenMPH,
+                serviceFee,
+                ownerPkh) {
       this.askedMPH = askedMPH;
       this.askedTN = askedTN;
       this.offeredMPH = offeredMPH;
@@ -91,6 +93,8 @@ class SwapConfig {
       this.escrowEnabled = escrowEnabled;
       this.escrowAddr = escrowAddr;
       this.userTokenMPH = userTokenMPH;
+      this.serviceFee = serviceFee;
+      this.ownerPkh = ownerPkh;
     }
 }
 
@@ -190,6 +194,8 @@ const showSwapScriptUTXOs = async (swapConfig) => {
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
     swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+    swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
+    swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
     const swapCompiledProgram = swapProgram.compile(optimize);
 
     const swapScriptAddr = Address.fromHashes(swapCompiledProgram.validatorHash);
@@ -271,6 +277,8 @@ const getSwapUTXO = async (swapConfig) => {
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
     swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+    swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
+    swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
     const swapCompiledProgram = swapProgram.compile(optimize);
 
     const swapUtxos = await network.getUtxos(Address.fromHashes(swapCompiledProgram.validatorHash));
@@ -708,6 +716,8 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         const swapCompiledProgram = swapProgram.compile(optimize);  
         
         // Now we are able to get the UTxOs in Buyer & Seller Wallets
@@ -828,6 +838,8 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         const swapCompiledProgram = swapProgram.compile(optimize);  
 
         // Get the UTxOs in Seller Wallet
@@ -936,6 +948,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
         network.tick(BigInt(10));
         await showWalletUTXOs("Buyer", buyer);
         await showWalletUTXOs("Seller", seller);
+        await showWalletUTXOs("Owner", appWallet);
         await showSwapScriptUTXOs(swapConfig);
 
          // Compile the swap script
@@ -948,6 +961,8 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
          swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
          swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
          swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
+         swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
          const swapCompiledProgram = swapProgram.compile(optimize); 
         
         // Now we are able to get the UTxOs in Buyer & Seller Wallets
@@ -1025,12 +1040,18 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
         const buyerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), buyerToken]]);
         const buyerTokenValue = new Value(BigInt(0), buyerTokenAsset);
         
-
         console.log("swapAsset:orderDetails.buyAssetVal: ", orderDetails.buyAssetVal.toSchemaJson());
+        
         // Create the output that goes to the buyer
         tx.addOutput(new TxOutput(
             buyer.address,
             minAdaVal.add(orderDetails.buyAssetVal).add(buyerTokenValue)
+        ));
+
+        // Create the output for the service fee
+        tx.addOutput(new TxOutput(
+            appWallet.address,
+            new Value(BigInt(swapConfig.serviceFee))
         ));
 
         // Create the output to send to the buyer address for the change
@@ -1040,6 +1061,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
                 minAdaVal.add(orderDetails.changeAssetVal)
             ));
         }
+
 
         // Add buyer wallet pkh as a signer which is required for an update
         tx.addSigner(buyer.pubKeyHash);
@@ -1071,6 +1093,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
         console.log("************ POST-TEST ************");
         await showWalletUTXOs("Buyer", buyer);
         await showWalletUTXOs("Seller", seller);
+        await showWalletUTXOs("Owner", appWallet);
         await showSwapScriptUTXOs(swapConfig);
         return true;
 
@@ -1115,6 +1138,8 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         const swapCompiledProgram = swapProgram.compile(optimize); 
 
         // Get the UTxOs in Buyer Wallets
@@ -1282,6 +1307,8 @@ const multiAssetSwapEscrow = async (buyer,
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         const swapCompiledProgramUSDA = swapProgram.compile(optimize); 
 
         // Get the UTxOs in Buyer Wallets
@@ -1368,6 +1395,8 @@ const multiAssetSwapEscrow = async (buyer,
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         const swapCompiledProgramProduct = swapProgram.compile(optimize); 
 
         // Add the script as a witness to the transaction
@@ -1646,6 +1675,8 @@ const closeSwap = async (seller, swapConfig, sellerTokenTN) => {
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_ADDR"] : swapConfig.escrowAddr};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         const swapCompiledProgram = swapProgram.compile(optimize); 
 
         // Get the UTxOs in Seller Wallet

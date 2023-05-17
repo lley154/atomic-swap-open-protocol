@@ -16,7 +16,8 @@ import {
     network,
     SwapConfig,
     showWalletUTXOs,
-    updateSwap
+    updateSwap,
+    appWallet
 } from "./swap-simulator.mjs"
 
 // Create seller wallet - we add 10ADA to start
@@ -77,7 +78,9 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   seller.pubKeyHash.hex,
                                   false, // escrow not enabled
                                   "",    // escrow address n/a 
-                                  sellerToken.mph
+                                  sellerToken.mph,
+                                  1_000_000, // 1 Ada service fee
+                                  appWallet.pubKeyHash.hex
                                   ); 
 
 // Initialize with price of 15 Ada and 5 product tokens
