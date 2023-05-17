@@ -1754,6 +1754,9 @@ const closeSwap = async (seller, swapConfig, sellerTokenTN) => {
             datumInfo.offeredAssetValue.add(sellerTokenValue)
         ));
 
+        // Add buyer signer which is required to close the swap
+        tx.addSigner(seller.pubKeyHash);
+        
         // Add app wallet pkh as a signer which is required to burn beacon
         tx.addSigner(appWallet.pubKeyHash);
 
@@ -1765,13 +1768,12 @@ const closeSwap = async (seller, swapConfig, sellerTokenTN) => {
         console.log("Tx Execution Units", tx.witnesses.dump().redeemers);
 
         // Sign tx with appWallet signature
+        const signatureSeller = await seller.signTx(tx);
+        tx.addSignatures(signatureSeller);
+
+        // Sign tx with appWallet signature
         const signatureAppWallet = await appWallet.signTx(tx);
         tx.addSignatures(signatureAppWallet);
-
-
-        // Sign tx with sellers signature
-        const signatures = await seller.signTx(tx);
-        tx.addSignatures(signatures);
 
         console.log("");
         console.log("************ SUBMIT TX ************");

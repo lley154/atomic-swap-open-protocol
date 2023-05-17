@@ -57,7 +57,13 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     txOutputsContract : []TxOutput = tx.outputs_locked_by(vHash);
     
     redeemer.switch {
-        Close => { true },
+        Close => {
+            beaconTokenBurnVal: Value = Value::new(beaconAssetclass, (-1));
+
+            (txOutputsContract.length == 0).trace("SV1: ") &&
+            tx.is_signed_by(sellerPkh).trace("SV2: ") &&
+            (tx.minted == beaconTokenBurnVal).trace("SV3: ")
+        },
         red: Swap => { 
             txOutputsBuyer : []TxOutput = tx.outputs_sent_to(red.buyerPkh);
             txOutputsOwner : []TxOutput = tx.outputs_sent_to(ownerPkh);
@@ -71,7 +77,6 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 // Pull out the buyer token value & tn (pkh)
                 buyerToken: Map[ByteArray]Int = txOutputsBuyer.head.value.get_policy(userTokenMph);   
                 buyerTN: String = (buyerToken.head_key).slice(0,56).decode_utf8();
-                //buyerPkh: PubKeyHash = PubKeyHash::new(buyerTN);
                 buyerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMph: buyerToken};
                 buyerTokenVal = Value::from_map(buyerTokenMap);
              
@@ -82,12 +87,10 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         offeredAssetDiffQty: Int = offeredAssetDiffVal.get(offeredAssetclass);
                         swapVal: Value = minAdaVal + datumOutData.offeredAsset + beaconVal + sellerTokenVal;
                         feeVal: Value = Value::lovelace(SERVICE_FEE);
-                        //print("tx.value_locked_by(vHash): " + tx.value_locked_by(vHash).show());
-                        //print("swapVal: " + swapVal.show());
-        
-                   
-                        (datumIn.askedAsset == datumOutData.askedAsset).trace("SV1: ") &&
-                        (tx.value_locked_by(vHash) == (swapVal)).trace("SV2: ") &&
+                       
+                        (datumIn.askedAsset == datumOutData.askedAsset).trace("SV4: ") &&
+                        (tx.value_locked_by(vHash) == (swapVal)).trace("SV5: ") &&
+                        
                         // Check if askedAsset is in lovelace, if not then need to add minAdaVal
                         (if (datumIn.askedAsset.get_lovelace() == 0) {
                             (if (ESCROW_ENABLED) {
@@ -96,13 +99,11 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                                 buyerVal: Value = minAdaVal + offeredAssetDiffVal + buyerTokenVal;
                                 sellerVal: Value =  minAdaVal + datumIn.askedAsset * offeredAssetDiffQty;
                                 buyerPkh: PubKeyHash = tx.signatories.head;
-                                print("buyerVal: " + buyerVal.show());
-                                print("sellerVal: " + sellerVal.show());
-                                (buyerVal == txOutputsBuyer.head.value).trace("SV3: ") &&
-                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV4: ") &&
-                                (feeVal == txOutputsOwner.head.value).trace("SV5: ") &&
-                                (sellerTN == SELLER_PKH.show()).trace("SV6: ") &&
-                                (buyerTN == buyerPkh.show()).trace("SV7: ")
+                                (buyerVal == txOutputsBuyer.head.value).trace("SV6: ") &&
+                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV7: ") &&
+                                (feeVal == txOutputsOwner.head.value).trace("SV8: ") &&
+                                (sellerTN == SELLER_PKH.show()).trace("SV9: ") &&
+                                (buyerTN == buyerPkh.show()).trace("SV10: ")
                             }) 
                         } else {
                             (if (ESCROW_ENABLED) {
@@ -111,22 +112,18 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                                 buyerVal: Value = minAdaVal + offeredAssetDiffVal + buyerTokenVal;
                                 sellerVal: Value =  datumIn.askedAsset * offeredAssetDiffQty;
                                 buyerPkh: PubKeyHash = tx.signatories.head;
-                                //print("buyerVal: " + buyerVal.show());
-                                //print("sellerVal: " + sellerVal.show());
-                                //print("buyerTN: " + buyerTN);
-                                //print("sellerTN: " + sellerTN);
-                                (buyerVal == txOutputsBuyer.head.value).trace("SV8: ") &&
-                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV9: ") &&
-                                (feeVal == txOutputsOwner.head.value).trace("SV10: ") &&
-                                (sellerTN == SELLER_PKH.show()).trace("SV11: ") &&
-                                (buyerTN == buyerPkh.show()).trace("SV12: ")
+                                (buyerVal == txOutputsBuyer.head.value).trace("SV11: ") &&
+                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV12: ") &&
+                                (feeVal == txOutputsOwner.head.value).trace("SV13: ") &&
+                                (sellerTN == SELLER_PKH.show()).trace("SV14: ") &&
+                                (buyerTN == buyerPkh.show()).trace("SV15: ")
                             })
                         })
                     },
-                    else => false.trace("no inline datum found: ") // No inline datum found
+                    else => false.trace("SV16: ") // No inline datum found
                 }
             } else {
-                false.trace("no datum found in outputs: ") // No datum found in outputs
+                false.trace("SV17: ") // No datum found in outputs
             }
         },
         Update => {
@@ -138,13 +135,13 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     datumOut: Inline => { 
                         datumOutInline: Datum = Datum::from_data(datumOut.data);
                         swapVal: Value = minAdaVal + datumOutInline.offeredAsset + beaconVal + userTokenVal;
-                        tx.is_signed_by(sellerPkh).trace("tx signed: ") &&
-                        (tx.value_locked_by(vHash) == (swapVal)).trace("output value: ") 
+                        tx.is_signed_by(sellerPkh).trace("SV18: ") &&
+                        (tx.value_locked_by(vHash) == (swapVal)).trace("SV19: ") 
                     },
-                    else => false.trace("no inline datum found: ") // No inline datum found
+                    else => false.trace("SV20: ") // No inline datum found
                 }
             } else {
-                false.trace("no datum found in outputs: ") // No datum found in outputs
+                false.trace("SV21: ") // No datum found in outputs
             }
         }
     }

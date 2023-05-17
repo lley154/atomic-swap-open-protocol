@@ -27,16 +27,9 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             );
             userTokenVal : Value = Value::new(userTokenAssetclass, red.qty);
             userPkh: PubKeyHash = PubKeyHash::new(red.pkhBA);
-            print("tx.minted: " + tx.minted.show());
-            print("userTokenVal: "+ userTokenVal.show());
-            print("red.pkhBA: " + red.pkhBA.show());
-            print("red timestamp: " + red.timestampBA);
-            print("red qty: " + red.qty.show());
-            print("userPkh: " + userPkh.show());
             ctx.tx.is_signed_by(appPkh).trace("UTP1: ") &&
             ctx.tx.is_signed_by(userPkh).trace("UTP2: ") &&
             (tx.minted == userTokenVal).trace("UTP3: ")
-            // TODO validate timestamp
         },
         Burn => { 
             true 
