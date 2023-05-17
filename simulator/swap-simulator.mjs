@@ -57,7 +57,7 @@ const networkParams = new NetworkParams(JSON.parse(networkParamsFile.toString())
 let optimize = false;
 
 // Global variables
-const minAda = BigInt(5_000_000);        // minimum lovelace locked at swap contract
+const minAda = BigInt(2_500_000);        // minimum lovelace locked at swap contract
 const minAdaVal = new Value(minAda);
 const minChangeAda = BigInt(1_000_000);  // minimum lovelace needed to send back as change
 const deposit = BigInt(5_000_000);        // 5 Ada deposit for escrow
@@ -592,7 +592,7 @@ const mintUserTokens = async (user, qty) => {
         // Start building the transaction
         const tx = new Tx();
 
-        // Add the Seller UTXOs as inputs
+        // Add the user UTXOs as inputs
         tx.addInputs(utxosUser);
 
         // Add the user token policy script as a witness to the transaction
@@ -1023,17 +1023,33 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
         ));
 
         // Create the output to send the askedAsset to the seller address
-        if (orderDetails.noChange) {
-            tx.addOutput(new TxOutput(
-                seller.address,
-                swapAskedAssetValue
-            ));
+        // Check if asked Asset is in lovelace
+        if (swapAskedAssetValue.lovelace == 0) {
+            if (orderDetails.noChange) {
+                tx.addOutput(new TxOutput(
+                    seller.address,
+                    minAdaVal.add(swapAskedAssetValue)
+                ));
+            } else {
+                tx.addOutput(new TxOutput(
+                    seller.address,
+                    mindAdaVal.add(swapAskedAssetValue.sub(orderDetails.changeAssetVal))
+                ));
+            }
         } else {
-            tx.addOutput(new TxOutput(
-                seller.address,
-                swapAskedAssetValue.sub(orderDetails.changeAssetVal)
-            ));
+            if (orderDetails.noChange) {
+                tx.addOutput(new TxOutput(
+                    seller.address,
+                    swapAskedAssetValue
+                ));
+            } else {
+                tx.addOutput(new TxOutput(
+                    seller.address,
+                    swapAskedAssetValue.sub(orderDetails.changeAssetVal)
+                ));
+            }
         }
+
 
         // Construct the Buyer Token value
         const buyerToken = [[textToBytes(buyerTokenTN), BigInt(1)]];
@@ -1055,13 +1071,22 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
         ));
 
         // Create the output to send to the buyer address for the change
-        if (!orderDetails.noChange) {
-            tx.addOutput(new TxOutput(
-                buyer.address,
-                minAdaVal.add(orderDetails.changeAssetVal)
-            ));
+        if (orderDetails.changeAssetVal.lovelace == 0)
+        {
+            if (!orderDetails.noChange) {
+                tx.addOutput(new TxOutput(
+                    buyer.address,
+                    minAdaVal.add(orderDetails.changeAssetVal)
+                ));
+            }
+        } else {
+            if (!orderDetails.noChange) {
+                tx.addOutput(new TxOutput(
+                    buyer.address,
+                    orderDetails.changeAssetVal
+                ));
+            }
         }
-
 
         // Add buyer wallet pkh as a signer which is required for an update
         tx.addSigner(buyer.pubKeyHash);

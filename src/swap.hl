@@ -30,7 +30,7 @@ const SERVICE_FEE: Int = 0
 const OWNER_PKH: ByteArray = #
 const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
-const MIN_ADA: Int = 5_000_000
+const MIN_ADA: Int = 2_500_000
 const minAdaVal: Value = Value::lovelace(MIN_ADA)
 
 func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
@@ -82,6 +82,9 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         offeredAssetDiffQty: Int = offeredAssetDiffVal.get(offeredAssetclass);
                         swapVal: Value = minAdaVal + datumOutData.offeredAsset + beaconVal + sellerTokenVal;
                         feeVal: Value = Value::lovelace(SERVICE_FEE);
+                        //print("tx.value_locked_by(vHash): " + tx.value_locked_by(vHash).show());
+                        //print("swapVal: " + swapVal.show());
+        
                    
                         (datumIn.askedAsset == datumOutData.askedAsset).trace("SV1: ") &&
                         (tx.value_locked_by(vHash) == (swapVal)).trace("SV2: ") &&
@@ -108,10 +111,10 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                                 buyerVal: Value = minAdaVal + offeredAssetDiffVal + buyerTokenVal;
                                 sellerVal: Value =  datumIn.askedAsset * offeredAssetDiffQty;
                                 buyerPkh: PubKeyHash = tx.signatories.head;
-                                print("buyerVal: " + buyerVal.show());
-                                print("sellerVal: " + sellerVal.show());
-                                print("buyerTN: " + buyerTN);
-                                print("sellerTN: " + sellerTN);
+                                //print("buyerVal: " + buyerVal.show());
+                                //print("sellerVal: " + sellerVal.show());
+                                //print("buyerTN: " + buyerTN);
+                                //print("sellerTN: " + sellerTN);
                                 (buyerVal == txOutputsBuyer.head.value).trace("SV8: ") &&
                                 (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV9: ") &&
                                 (feeVal == txOutputsOwner.head.value).trace("SV10: ") &&

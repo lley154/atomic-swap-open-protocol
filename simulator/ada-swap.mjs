@@ -6,6 +6,7 @@ import {
 } from "@hyperionbt/helios";
 
 import {
+    appWallet,
     assetSwap,
     beaconMPH,
     closeSwap,
@@ -17,14 +18,13 @@ import {
     SwapConfig,
     showWalletUTXOs,
     updateSwap,
-    appWallet
 } from "./swap-simulator.mjs"
 
 // Create seller wallet - we add 10ADA to start
-const seller = network.createWallet(BigInt(20_000_000));
+const seller = network.createWallet(BigInt(15_000_000));
 
 // Create buyer wallet - we add 10ADA to start
-const buyer = network.createWallet(BigInt(20_000_000));
+const buyer = network.createWallet(BigInt(15_000_000));
 
 // Now lets tick the network on 10 slots,
 network.tick(BigInt(10));
@@ -110,6 +110,6 @@ const buyerToken = await mintUserTokens(buyer, 50);
 await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, sellerToken.tn, buyerToken.tn);
 
 // Close the swap position
-//await closeSwap(seller, swapConfig, sellerToken.tn);  
-//showWalletUTXOs("Buyer", buyer);
+await closeSwap(seller, swapConfig, sellerToken.tn);  
+showWalletUTXOs("Buyer", buyer);
 

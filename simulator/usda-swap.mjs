@@ -1,28 +1,35 @@
 import {
   Assets, 
-  bytesToHex,
   MintingPolicyHash,
   Value,
   textToBytes
 } from "@hyperionbt/helios";
 
 import {
+    appWallet,
     assetSwap,
     beaconMPH,
     closeSwap,
     initSwap,
     getMphTnQty,
     minAda,
+    mintUserTokens,
     network,
     SwapConfig,
-    showWalletUTXOs
+    showWalletUTXOs,
 } from "./swap-simulator.mjs"
 
 // Create seller wallet - we add 10ADA to start
-const seller = network.createWallet(BigInt(10_000_000));
+const seller = network.createWallet(BigInt(15_000_000));
 
 // Create buyer wallet - we add 10ADA to start
-const buyer = network.createWallet(BigInt(10_000_000));
+const buyer = network.createWallet(BigInt(15_000_000));
+
+// Now lets tick the network on 10 slots,
+network.tick(BigInt(10));
+
+// Create the seller token
+const sellerToken = await mintUserTokens(seller, 25);
 
 // Create product token to buy
 const productMPH = MintingPolicyHash.fromHex(
@@ -90,11 +97,16 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   beaconMPH.hex,
                                   seller.pubKeyHash.hex,
                                   false, // escrow not enabled
-                                  ""     // escrow address n/a 
+                                  "",     // escrow address n/a 
+                                  sellerToken.mph,
+                                  1_000_000, // 1 Ada service fee
+                                  appWallet.pubKeyHash.hex
                                   ); 
 
+console.log("usda-swap: sellerToken.tn", sellerToken.tn);
+                                  
 // Initialize with price of 20 usda tokens with 5 product tokens
-await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig);   
+await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
 
 // Create usda token for swap asset
 const swapUSDATokenAsset = new Assets();
@@ -106,10 +118,13 @@ swapUSDATokenAsset.addComponent(
 
 const swapAskedAssetValue = new Value(minAda, swapUSDATokenAsset);
 
+// Create the buyer token
+const buyerToken = await mintUserTokens(buyer, 25);
+
 // Swap 50 usda tokens and get as many product tokens as possible
-await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig);  
+await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, sellerToken.tn, buyerToken.tn);  
 
 // Close the swap position
-await closeSwap(seller, swapConfig);
+await closeSwap(seller, swapConfig, sellerToken.tn);
 showWalletUTXOs("Buyer", buyer);
 
