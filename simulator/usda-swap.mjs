@@ -17,6 +17,7 @@ import {
     network,
     SwapConfig,
     showWalletUTXOs,
+    updateSwap
 } from "./swap-simulator.mjs"
 
 // Create seller wallet - we add 10ADA to start
@@ -108,6 +109,28 @@ console.log("usda-swap: sellerToken.tn", sellerToken.tn);
 // Initialize with price of 20 usda tokens with 5 product tokens
 await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
 
+// Create usda tokens to for askedAssets
+const updateUsdaTokenAsset = new Assets();
+updateUsdaTokenAsset.addComponent(
+    usdaTokenMPH,
+    usdaTokenTN,
+    BigInt(15)
+);
+
+const updatedAskedAssetValue  = new Value(BigInt(0), updateUsdaTokenAsset);
+
+// Create the additional asset value to be offered
+const updatedOfferedAsset = new Assets();
+updatedOfferedAsset.addComponent(
+    productMPH,
+    productTN,
+    BigInt(5)
+);
+const updatedOfferedAssetValue = new Value(BigInt(0), updatedOfferedAsset);
+
+// Change price to 10 Ada and add 5 more product tokens
+await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig, sellerToken.tn); 
+
 // Create usda token for swap asset
 const swapUSDATokenAsset = new Assets();
 swapUSDATokenAsset.addComponent(
@@ -127,4 +150,3 @@ await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, sellerToken.tn, 
 // Close the swap position
 await closeSwap(seller, swapConfig, sellerToken.tn);
 showWalletUTXOs("Buyer", buyer);
-

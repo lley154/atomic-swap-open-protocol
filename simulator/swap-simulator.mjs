@@ -816,7 +816,7 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
  * @param {Value} offeredAssetValue
  */
 const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerTokenTN) => {
-
+    
     try {
         console.log("");
         console.log("************ EXECUTE UPDATE SWAP ************");
