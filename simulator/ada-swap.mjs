@@ -6,7 +6,7 @@ import {
 } from "@hyperionbt/helios";
 
 import {
-    appWallet,
+    ownerWallet,
     assetSwap,
     beaconMPH,
     closeSwap,
@@ -30,7 +30,7 @@ const buyer = network.createWallet(BigInt(15_000_000));
 network.tick(BigInt(10));
 
 // Create the seller token
-const sellerToken = await mintUserTokens(seller, 25);
+const sellerToken = await mintUserTokens(seller, 2);
 
 // Create the asset value being asked for
 const askedAssetValue = new Value(BigInt(15_000_000));
@@ -52,7 +52,7 @@ productAsset.addComponent(
 // Add product token to the seller wallet
 network.createUtxo(seller, minAda, productAsset);
 
-// Create buyer wallet - add 100ADA for swap
+// Add 100ADA in buyer wallet for swap
 network.createUtxo(buyer, BigInt(100_000_000));
 
 // Now lets tick the network on 10 slots,
@@ -80,7 +80,9 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   "",    // escrow address n/a 
                                   sellerToken.mph,
                                   1_000_000, // 1 Ada service fee
-                                  appWallet.pubKeyHash.hex
+                                  ownerWallet.pubKeyHash.hex,
+                                  2_500_000, // minAda amt
+                                  0  // deposit
                                   ); 
 
 // Initialize with price of 15 Ada and 5 product tokens
@@ -96,7 +98,7 @@ updatedOfferedAsset.addComponent(
     productTN,
     BigInt(5)
 );
-const updatedOfferedAssetValue = new Value(BigInt(0), offeredAsset);
+const updatedOfferedAssetValue = new Value(BigInt(0), updatedOfferedAsset);
 
 // Change price to 10 Ada and add 5 more product tokens
 await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig, sellerToken.tn); 
@@ -104,7 +106,7 @@ await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue
 const swapAskedAssetValue = new Value(BigInt(25_000_000));
 
 // Create the buyer token
-const buyerToken = await mintUserTokens(buyer, 50);
+const buyerToken = await mintUserTokens(buyer, 2);
 
 // Swap 25 Ada and get as many product tokens as possible
 await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, sellerToken.tn, buyerToken.tn);

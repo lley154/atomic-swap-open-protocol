@@ -6,7 +6,7 @@ enum Redeemer {
 }
 
 // Escrow validator script parameters 
-const APP_PKH: ByteArray = #
+const OWNER_PKH: ByteArray = #
 
 
 func main(_, _, _) -> Bool {

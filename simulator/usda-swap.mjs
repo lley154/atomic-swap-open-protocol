@@ -6,7 +6,6 @@ import {
 } from "@hyperionbt/helios";
 
 import {
-    appWallet,
     assetSwap,
     beaconMPH,
     closeSwap,
@@ -15,6 +14,7 @@ import {
     minAda,
     mintUserTokens,
     network,
+    ownerWallet,
     SwapConfig,
     showWalletUTXOs,
     updateSwap
@@ -30,7 +30,7 @@ const buyer = network.createWallet(BigInt(15_000_000));
 network.tick(BigInt(10));
 
 // Create the seller token
-const sellerToken = await mintUserTokens(seller, 25);
+const sellerToken = await mintUserTokens(seller, 2);
 
 // Create product token to buy
 const productMPH = MintingPolicyHash.fromHex(
@@ -101,7 +101,9 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   "",     // escrow address n/a 
                                   sellerToken.mph,
                                   1_000_000, // 1 Ada service fee
-                                  appWallet.pubKeyHash.hex
+                                  ownerWallet.pubKeyHash.hex,
+                                  2_500_000, // minAda amt
+                                  0 // deposit
                                   ); 
 
 console.log("usda-swap: sellerToken.tn", sellerToken.tn);
@@ -142,7 +144,7 @@ swapUSDATokenAsset.addComponent(
 const swapAskedAssetValue = new Value(minAda, swapUSDATokenAsset);
 
 // Create the buyer token
-const buyerToken = await mintUserTokens(buyer, 25);
+const buyerToken = await mintUserTokens(buyer, 2);
 
 // Swap 50 usda tokens and get as many product tokens as possible
 await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, sellerToken.tn, buyerToken.tn);  

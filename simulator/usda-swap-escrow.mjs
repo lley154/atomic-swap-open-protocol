@@ -1,7 +1,6 @@
 import {
     Address,
     Assets, 
-    bytesToHex,
     MintingPolicyHash,
     Value,
     textToBytes
@@ -16,19 +15,27 @@ import {
     EscrowConfig,
     initSwap,
     getMphTnQty,
-    appWallet,
+    ownerWallet,
     minAda,
-    optimize,
+    mintUserTokens,
     network,
+    optimize,
     SwapConfig,
-    showWalletUTXOs
+    showWalletUTXOs,
+    updateSwap
 } from "./swap-simulator.mjs"
 
 // Create seller wallet - we add 10ADA to start
-const seller = network.createWallet(BigInt(10_000_000));
+const seller = network.createWallet(BigInt(20_000_000));
 
 // Create buyer wallet - we add 10ADA to start
-const buyer = network.createWallet(BigInt(10_000_000));
+const buyer = network.createWallet(BigInt(20_000_000));
+
+// Now lets tick the network on 10 slots,
+network.tick(BigInt(10));
+
+// Create the seller token
+const sellerToken = await mintUserTokens(seller, 2);
 
 // Create product token to buy
 const productMPH = MintingPolicyHash.fromHex(
@@ -88,14 +95,14 @@ const askedAssetValue = new Value(BigInt(0), usdaTokenAsset);
 
 const escrowConfig = new EscrowConfig(buyer.pubKeyHash.hex,
                                       seller.pubKeyHash.hex,
-                                      appWallet.pubKeyHash.hex);
+                                      ownerWallet.pubKeyHash.hex);
 
 // Create the escrow config parameters
 escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPKH};
 escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
-escrowProgram.parameters = {["MEDIATOR_PKH"] : escrowConfig.appWalletPKH};
+escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPKH};
 const escrowCompiledProgram = escrowProgram.compile(optimize);
-const escrowAddress = Address.fromHashes(escrowCompiledProgram.validatorHash); 
+//const escrowAddress = Address.fromHashes(escrowCompiledProgram.validatorHash); 
 
 // Create the swap config parameters
 const askedValueInfo = await getMphTnQty(askedAssetValue);
@@ -107,11 +114,16 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   beaconMPH.hex,
                                   seller.pubKeyHash.hex,
                                   true, // set escrow enabled to true
-                                  escrowAddress.toHex()
+                                  escrowCompiledProgram.validatorHash.hex,
+                                  sellerToken.mph,
+                                  1_000_000, // 1 Ada service fee
+                                  ownerWallet.pubKeyHash.hex,
+                                  2_500_000, // minAda amt
+                                  5_000_000  // deposit
                                   ); 
 
 // Initialize with price of 20 usda tokens with 5 product tokens
-await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig);   
+await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
 
 // Create usda token value for swap asset
 const swapUSDATokenAsset = new Assets();
@@ -123,8 +135,11 @@ swapUSDATokenAsset.addComponent(
 
 const swapAskedAssetValue = new Value(minAda, swapUSDATokenAsset);
 
+// Create the buyer token
+const buyerToken = await mintUserTokens(buyer, 2);
+
 // Swap 50 usda coins and get as many product tokens as possible
-const orderId = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapConfig, escrowConfig);
+const orderId = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapConfig, escrowConfig, sellerToken.tn, buyerToken.tn);
 
 // Approve the escrow for a given order id
 await approveEscrow(orderId, buyer, seller, escrowConfig);

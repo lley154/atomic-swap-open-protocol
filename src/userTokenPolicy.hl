@@ -10,8 +10,8 @@ enum Redeemer {
 }
 
 // User minting script parameters
-const APP_PKH: ByteArray = #
-const appPkh: PubKeyHash = PubKeyHash::new(APP_PKH)
+const OWNER_PKH: ByteArray = #
+const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
 func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     
@@ -27,7 +27,7 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             );
             userTokenVal : Value = Value::new(userTokenAssetclass, red.qty);
             userPkh: PubKeyHash = PubKeyHash::new(red.pkhBA);
-            ctx.tx.is_signed_by(appPkh).trace("UTP1: ") &&
+            ctx.tx.is_signed_by(ownerPkh).trace("UTP1: ") &&
             ctx.tx.is_signed_by(userPkh).trace("UTP2: ") &&
             (tx.minted == userTokenVal).trace("UTP3: ")
         },

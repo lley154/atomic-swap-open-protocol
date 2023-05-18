@@ -6,9 +6,9 @@ enum Redeemer {
 }
 
 // Beacon minting script parameters
-const APP_WALLET_PKH: ByteArray = #
-const appWalletPkh: PubKeyHash = PubKeyHash::new(APP_WALLET_PKH)
+const OWNER_PKH: ByteArray = #
+const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
 func main(_, ctx: ScriptContext) -> Bool {
-    ctx.tx.is_signed_by(appWalletPkh).trace("BTP1: ")
+    ctx.tx.is_signed_by(ownerPkh).trace("BTP1: ")
 }
