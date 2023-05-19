@@ -26,10 +26,10 @@ import {
 const minAda = BigInt(2_500_000);
 
 // Create seller wallet - we add 10ADA to start
-const seller = network.createWallet(BigInt(20_000_000));
+const seller = network.createWallet(BigInt(15_000_000));
 
 // Create buyer wallet - we add 10ADA to start
-const buyer = network.createWallet(BigInt(20_000_000));
+const buyer = network.createWallet(BigInt(15_000_000));
 
 // Now lets tick the network on 10 slots,
 network.tick(BigInt(10));
