@@ -7,7 +7,7 @@ struct Datum {
 
 enum Redeemer {
     Close {
-        sellerTokenTNBA: ByteArray
+        sellerTokenNameBA: ByteArray
     }
     Swap {
         buyerPkh: PubKeyHash
@@ -84,7 +84,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             // Creaet seller token that will be sent back to the seller
             sellerTokenAssetclass: AssetClass = AssetClass::new(
                 userTokenMph, 
-                red.sellerTokenTNBA
+                red.sellerTokenNameBA
             );
             sellerTokenVal : Value = Value::new(sellerTokenAssetclass, 1);
 
