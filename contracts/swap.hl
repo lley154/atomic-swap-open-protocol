@@ -121,6 +121,8 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         (datumIn.askedAssetVal == datumOutData.askedAssetVal).trace("SV2.1: ") &&
                         // Check that the askedAsset in the datum is what is asked as part of this swap
                         (datumIn.askedAssetVal.get(askedAssetclass) > 0).trace("SV2.2: ") &&
+                        // Check that the offeredAsset in the datum is what is offered as part of this swap
+                        (datumIn.offeredAssetVal.get(offeredAssetclass) > 0).trace("SV2.3: ") &&
                         (if (ESCROW_ENABLED) {
                             swapVal: Value = checkAdaVal(datumOutData.offeredAssetVal) + beaconVal + sellerTokenVal;
                             buyerVal: Value = offeredAssetDiffVal;
@@ -129,12 +131,12 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                             buyerPkh: PubKeyHash = tx.signatories.head;
                             eHash = ValidatorHash::new(ESCROW_HASH);
                             
-                            (tx.value_locked_by(sHash) == (swapVal)).trace("SV2.3: ") &&
-                            (tx.value_locked_by(eHash) == (escrowVal)).trace("SV2.4: ") &&
-                            (feeVal == txOutputsOwner.head.value).trace("SV2.5: ") &&
-                            (sellerTN == SELLER_PKH.show()).trace("SV2.6: ") &&
-                            (buyerTN == buyerPkh.show()).trace("SV2.7: ") &&
-                            (checkAdaVal(buyerTokenVal) == txOutputsBuyer.head.value).trace("SV2.8: ")
+                            (tx.value_locked_by(sHash) == (swapVal)).trace("SV2.4: ") &&
+                            (tx.value_locked_by(eHash) == (escrowVal)).trace("SV2.5: ") &&
+                            (feeVal == txOutputsOwner.head.value).trace("SV2.6: ") &&
+                            (sellerTN == SELLER_PKH.show()).trace("SV2.7: ") &&
+                            (buyerTN == buyerPkh.show()).trace("SV2.8: ") &&
+                            (checkAdaVal(buyerTokenVal) == txOutputsBuyer.head.value).trace("SV2.9: ")
                         } else {
                             swapVal: Value = checkAdaVal(datumOutData.offeredAssetVal) + beaconVal + sellerTokenVal;
                             buyerVal: Value = checkAdaVal(offeredAssetDiffVal) + buyerTokenVal;
