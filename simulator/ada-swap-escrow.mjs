@@ -14,7 +14,7 @@ import {
     EscrowConfig,
     initSwap,
     getMphTnQty,
-    ownerWallet,
+    owner,
     minAda,
     mintUserTokens,
     network,
@@ -73,12 +73,12 @@ const offeredAssetValue = new Value(BigInt(0), offeredAsset);
 
 const escrowConfig = new EscrowConfig(buyer.pubKeyHash.hex,
                                       seller.pubKeyHash.hex,
-                                      ownerWallet.pubKeyHash.hex);
+                                      owner.pubKeyHash.hex);
 
 // Create the escrow config parameters
-escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPKH};
-escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
-escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPKH};
+escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPkh};
+escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
+escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
 const escrowCompiledProgram = escrowProgram.compile(optimize);
 //const escrowAddress = Address.fromHashes(escrowCompiledProgram.validatorHash);                                   
 
@@ -95,7 +95,7 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   escrowCompiledProgram.validatorHash.hex,
                                   sellerToken.mph,
                                   1_000_000, // 1 Ada service fee
-                                  ownerWallet.pubKeyHash.hex,
+                                  owner.pubKeyHash.hex,
                                   2_500_000, // minAda amt
                                   5_000_000  // deposit
                                   );

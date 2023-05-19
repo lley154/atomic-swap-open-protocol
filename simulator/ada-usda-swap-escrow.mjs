@@ -134,8 +134,8 @@ const escrowConfig = new EscrowConfig(buyer.pubKeyHash.hex,
                                       appWallet.pubKeyHash.hex);
 
 // Create the escrow config parameters
-escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPKH};
-escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
+escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPkh};
+escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
 escrowProgram.parameters = {["MEDIATOR_PKH"] : escrowConfig.appWalletPKH};
 const escrowCompiledProgram = escrowProgram.compile(optimize);
 const escrowAddress = Address.fromHashes(escrowCompiledProgram.validatorHash); 

@@ -6,7 +6,7 @@ import {
 } from "@hyperionbt/helios";
 
 import {
-    ownerWallet,
+    owner,
     assetSwap,
     beaconMPH,
     closeSwap,
@@ -80,7 +80,7 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   "",    // escrow address n/a 
                                   sellerToken.mph,
                                   1_000_000, // 1 Ada service fee
-                                  ownerWallet.pubKeyHash.hex,
+                                  owner.pubKeyHash.hex,
                                   2_500_000, // minAda amt
                                   0  // deposit
                                   ); 

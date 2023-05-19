@@ -14,7 +14,7 @@ import {
     minAda,
     mintUserTokens,
     network,
-    ownerWallet,
+    owner,
     SwapConfig,
     showWalletUTXOs,
     updateSwap
@@ -101,7 +101,7 @@ const swapConfig = new SwapConfig(askedValueInfo.mph,
                                   "",     // escrow address n/a 
                                   sellerToken.mph,
                                   1_000_000, // 1 Ada service fee
-                                  ownerWallet.pubKeyHash.hex,
+                                  owner.pubKeyHash.hex,
                                   2_500_000, // minAda amt
                                   0 // deposit
                                   ); 
@@ -111,7 +111,7 @@ console.log("usda-swap: sellerToken.tn", sellerToken.tn);
 // Initialize with price of 20 usda tokens with 5 product tokens
 await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
 
-// Create usda tokens to for askedAssets
+// Create usda tokens to for updated askedAssets
 const updateUsdaTokenAsset = new Assets();
 updateUsdaTokenAsset.addComponent(
     usdaTokenMPH,
@@ -130,7 +130,7 @@ updatedOfferedAsset.addComponent(
 );
 const updatedOfferedAssetValue = new Value(BigInt(0), updatedOfferedAsset);
 
-// Change price to 10 Ada and add 5 more product tokens
+// Change price to 15 USDA and add 5 more product tokens
 await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig, sellerToken.tn); 
 
 // Create usda token for swap asset

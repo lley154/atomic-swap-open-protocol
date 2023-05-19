@@ -64,6 +64,8 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             (txOutputsContract.length == 0).trace("SV1: ") &&
             tx.is_signed_by(sellerPkh).trace("SV2: ") &&
             (tx.minted == beaconTokenBurnVal).trace("SV3: ")
+            // TODO check that seller token is returned to seller
+        
         },
         red: Swap => { 
             txOutputsBuyer : []TxOutput = tx.outputs_sent_to(red.buyerPkh);

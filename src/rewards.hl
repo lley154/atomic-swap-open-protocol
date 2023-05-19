@@ -5,7 +5,18 @@ enum Redeemer {
     Burn 
 }
 
-func main(_, _) -> Bool {
-    print("rewards minting");
-    true
+const OWNER_PKH: ByteArray = #
+const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+
+func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
+
+    tx : Tx = ctx.tx;
+    redeemer.switch {
+        Mint => {
+            tx.is_signed_by(ownerPkh).trace("RP1: ")
+        },
+        Burn => {
+            true
+        }
+    }
 }

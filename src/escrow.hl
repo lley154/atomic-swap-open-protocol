@@ -1,12 +1,14 @@
 spending escrow
 
 struct Datum {
+    buyerPkh: PubKeyHash
+    buyerTokenId: Int
+    depositVal: Value
     orderId: ByteArray
-    buyerPKH: PubKeyHash
-    depositValue: Value
-    sellerPKH: PubKeyHash
-    orderValue: Value
-    productValue: Value
+    orderVal: Value
+    productVal: Value
+    sellerPkh: PubKeyHash
+    sellerTokenId: Int
 }
 
 enum Redeemer {
@@ -17,10 +19,46 @@ enum Redeemer {
 
 // Escrow validator script parameters 
 const BUYER_PKH: ByteArray = #
-const SELLER_PKH: ByteArray = #
-const OWNER_PKH: ByteArray = #
+const buyerPkh: PubKeyHash = PubKeyHash::new(BUYER_PKH)
 
-func main(_, _, _) -> Bool {
-    print("escrow contract");
-    true
+const SELLER_PKH: ByteArray = #
+const sellerPkh: PubKeyHash = PubKeyHash::new(SELLER_PKH)
+
+const OWNER_PKH: ByteArray = #
+const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+
+
+func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
+    
+    //vHash : ValidatorHash = ctx.get_current_validator_hash();
+    tx : Tx = ctx.tx;
+
+    redeemer.switch {
+        Approve => {
+            //print("escrow: buyerPkh: " + datum.buyerPkh.show());
+            //print("escrow: sellerPkh " + datum.sellerPkh.show());
+            //print("escrow: orderVal " + datum.orderVal.show());
+            //print("escrow: productVal " + datum.productVal.show());
+            //print("escrow: despositVal " + datum.depositVal.show());
+            //print("escrow: tx.value_sent_to(datum.sellerPkh)" + tx.value_sent_to(datum.sellerPkh).show());
+            //print("escrow: tx.value_sent_to(datum.buyerPkh))" + tx.value_sent_to(datum.buyerPkh).show());
+            sellerVal: Value = datum.orderVal;
+            buyerVal: Value = datum.depositVal + datum.productVal;
+
+            tx.is_signed_by(datum.buyerPkh).trace("EV1: ") &&
+            tx.is_signed_by(datum.sellerPkh).trace("EV2: ") &&
+            tx.is_signed_by(ownerPkh).trace("EV3: ") &&
+            (tx.value_sent_to(datum.sellerPkh).contains(sellerVal)).trace("EV4: ") &&
+            (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV5: ") &&
+            (datum.sellerPkh == sellerPkh).trace("EV6: ") &&
+            (datum.buyerPkh == buyerPkh).trace("EV7: ")
+
+        },
+        Refund => {
+            true
+        },
+        Process => {
+            true
+        }
+    }
 }
