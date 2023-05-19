@@ -15,7 +15,8 @@ enum Redeemer {
     Update 
 }
 
-// Swap validator script parameters
+// Contract parameters 
+const VERSION: ByteArray = #
 const ASKED_MPH: ByteArray = #
 const ASKED_TN: ByteArray = #
 const OFFERED_MPH: ByteArray = #

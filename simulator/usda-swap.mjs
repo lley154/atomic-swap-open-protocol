@@ -91,19 +91,20 @@ const askedAssetValue = new Value(BigInt(0), usdaTokenAsset);
 // Create the swap config
 const askedValueInfo = await getMphTnQty(askedAssetValue);
 const offeredValueInfo = await getMphTnQty(offeredAssetValue);
-const swapConfig = new SwapConfig(askedValueInfo.mph,
+const swapConfig = new SwapConfig("1.0",                // script version
+                                  askedValueInfo.mph,
                                   askedValueInfo.tn,
                                   offeredValueInfo.mph,
                                   offeredValueInfo.tn,
                                   beaconMPH.hex,
                                   seller.pubKeyHash.hex,
-                                  false, // escrow not enabled
-                                  "",     // escrow address n/a 
+                                  false,                // escrow not enabled
+                                  "",                   // escrow address n/a 
                                   sellerToken.mph,
-                                  1_000_000, // 1 Ada service fee
+                                  1_000_000,            // 1 Ada service fee
                                   owner.pubKeyHash.hex,
-                                  2_500_000, // minAda amt
-                                  0 // deposit
+                                  2_500_000,            // minAda amt
+                                  0                     // deposit
                                   ); 
 
 console.log("usda-swap: sellerToken.tn", sellerToken.tn);

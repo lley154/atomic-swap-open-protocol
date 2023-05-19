@@ -5,7 +5,8 @@ enum Redeemer {
     Burn 
 }
 
-// Product minting script parameters
+// Contract parameters 
+const VERSION: ByteArray = #
 const SELLER_PKH: ByteArray = #
 const selerPkh: PubKeyHash = PubKeyHash::new(SELLER_PKH)
 const OWNER_PKH: ByteArray = #

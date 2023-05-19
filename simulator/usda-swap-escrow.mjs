@@ -93,11 +93,13 @@ usdaTokenAsset.addComponent(
 
 const askedAssetValue = new Value(BigInt(0), usdaTokenAsset);
 
-const escrowConfig = new EscrowConfig(buyer.pubKeyHash.hex,
+const escrowConfig = new EscrowConfig("1.0",
+                                      buyer.pubKeyHash.hex,
                                       seller.pubKeyHash.hex,
                                       owner.pubKeyHash.hex);
 
 // Create the escrow config parameters
+escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
 escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPkh};
 escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
 escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
@@ -106,19 +108,20 @@ const escrowCompiledProgram = escrowProgram.compile(optimize);
 // Create the swap config parameters
 const askedValueInfo = await getMphTnQty(askedAssetValue);
 const offeredValueInfo = await getMphTnQty(offeredAssetValue);
-const swapConfig = new SwapConfig(askedValueInfo.mph,
+const swapConfig = new SwapConfig("1.0",                // script verion
+                                  askedValueInfo.mph,
                                   askedValueInfo.tn,
                                   offeredValueInfo.mph,
                                   offeredValueInfo.tn,
                                   beaconMPH.hex,
                                   seller.pubKeyHash.hex,
-                                  true, // set escrow enabled to true
+                                  true,                 // set escrow enabled to true
                                   escrowCompiledProgram.validatorHash.hex,
                                   sellerToken.mph,
-                                  1_000_000, // 1 Ada service fee
+                                  1_000_000,            // 1 Ada service fee
                                   owner.pubKeyHash.hex,
-                                  2_500_000, // minAda amt
-                                  5_000_000  // deposit
+                                  2_500_000,            // minAda amt
+                                  5_000_000             // deposit
                                   ); 
 
 // Initialize with price of 20 usda tokens with 5 product tokens
@@ -166,6 +169,6 @@ const orderId = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapCo
 await approveEscrow(orderId, buyer, seller, escrowConfig);
 
 // Close the swap position
-//await closeSwap(seller, swapConfig, sellerToken.tn);
-//showWalletUTXOs("Buyer", buyer);   
+await closeSwap(seller, swapConfig, sellerToken.tn);
+showWalletUTXOs("Buyer", buyer);   
 

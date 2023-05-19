@@ -5,9 +5,11 @@ enum Redeemer {
     Burn 
 }
 
-// Beacon minting script parameters
+// Contract parameters 
+const VERSION: ByteArray = #
 const OWNER_PKH: ByteArray = #
 const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+
 
 func main(_, ctx: ScriptContext) -> Bool {
     ctx.tx.is_signed_by(ownerPkh).trace("BTP1: ")

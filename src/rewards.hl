@@ -5,6 +5,8 @@ enum Redeemer {
     Burn 
 }
 
+// Contract parameters 
+const VERSION: ByteArray = # 
 const OWNER_PKH: ByteArray = #
 const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 

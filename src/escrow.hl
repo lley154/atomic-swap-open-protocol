@@ -17,7 +17,8 @@ enum Redeemer {
     Process 
 }
 
-// Escrow validator script parameters 
+// Contract parameters 
+const VERSION: ByteArray = #
 const BUYER_PKH: ByteArray = #
 const buyerPkh: PubKeyHash = PubKeyHash::new(BUYER_PKH)
 
