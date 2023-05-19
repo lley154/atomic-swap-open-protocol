@@ -1617,7 +1617,7 @@ const closeSwap = async (seller, swapConfig, sellerTokenTN) => {
         tx.attachScript(swapCompiledProgram);
 
         // Create the swap redeemer
-        const swapRedeemer = (new swapProgram.types.Redeemer.Close())._toUplcData();
+        const swapRedeemer = (new swapProgram.types.Redeemer.Close(textToBytes(sellerTokenTN)))._toUplcData();
         
         // Get the UTXO that has the swap datum
         const swapUtxo = await getSwapUTXO(swapConfig);

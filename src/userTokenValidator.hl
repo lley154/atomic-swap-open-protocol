@@ -1,15 +1,14 @@
 spending userTokenValidator
 
 enum Redeemer {
-    Mint
-    Burn
+    Spend
 }
 
-// Escrow validator script parameters 
+// User token validator script parameter
 const OWNER_PKH: ByteArray = #
+const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
-
-func main(_, _, _) -> Bool {
-    print("userTokenValidator");
-    true
+func main(_, _, ctx: ScriptContext) -> Bool {
+    
+    ctx.tx.is_signed_by(ownerPkh).trace("UTV1: ")
 }

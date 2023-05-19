@@ -10,10 +10,9 @@ const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
 func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
-    tx : Tx = ctx.tx;
     redeemer.switch {
         Mint => {
-            tx.is_signed_by(ownerPkh).trace("RP1: ")
+            ctx.tx.is_signed_by(ownerPkh).trace("RP1: ")
         },
         Burn => {
             true

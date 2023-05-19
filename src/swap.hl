@@ -6,7 +6,9 @@ struct Datum {
 }
 
 enum Redeemer {
-    Close 
+    Close {
+        sellerTokenTNBA: ByteArray
+    }
     Swap {
         buyerPkh: PubKeyHash
     }
@@ -58,14 +60,20 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     txOutputsContract : []TxOutput = tx.outputs_locked_by(sHash);
     
     redeemer.switch {
-        Close => {
+        red: Close => {
+            // Create beacon token value for burning
             beaconTokenBurnVal: Value = Value::new(beaconAssetclass, (-1));
+            // Creaet seller token that will be sent back to the seller
+            sellerTokenAssetclass: AssetClass = AssetClass::new(
+                userTokenMph, 
+                red.sellerTokenTNBA
+            );
+            sellerTokenVal : Value = Value::new(sellerTokenAssetclass, 1);
 
-            (txOutputsContract.length == 0).trace("SV1: ") &&
-            tx.is_signed_by(sellerPkh).trace("SV2: ") &&
-            (tx.minted == beaconTokenBurnVal).trace("SV3: ")
-            // TODO check that seller token is returned to seller
-        
+            (txOutputsContract.length == 0).trace("SV1.1: ") &&
+            tx.is_signed_by(sellerPkh).trace("SV1.2: ") &&
+            (tx.minted == beaconTokenBurnVal).trace("SV1.3: ") &&
+            (tx.value_sent_to(sellerPkh).contains(sellerTokenVal)).trace("SV1.4: ")
         },
         red: Swap => { 
             txOutputsBuyer : []TxOutput = tx.outputs_sent_to(red.buyerPkh);
@@ -89,7 +97,8 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         offeredAssetDiffVal: Value = datumIn.offeredAsset - datumOutData.offeredAsset;
                         offeredAssetDiffQty: Int = offeredAssetDiffVal.get(offeredAssetclass);
                         feeVal: Value = Value::lovelace(SERVICE_FEE);
-                        (datumIn.askedAsset == datumOutData.askedAsset).trace("SV4: ") &&
+
+                        (datumIn.askedAsset == datumOutData.askedAsset).trace("SV2.1: ") &&
                         
                         // Check if askedAsset is in lovelace, if not then need to add minAdaVal
                         (if (datumIn.askedAsset.get_lovelace() == 0) {
@@ -100,25 +109,25 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                                 escrowVal: Value = minAdaVal + depositAdaVal + buyerVal + sellerVal;
                                 buyerPkh: PubKeyHash = tx.signatories.head;
                                 eHash = ValidatorHash::new(ESCROW_HASH);
-                                //print("tx.value_locked_by(eHash)" + tx.value_locked_by(eHash).show());
-                                //print("escrowVal" + escrowVal.show());
-                                (tx.value_locked_by(sHash) == (swapVal)).trace("SV5: ") &&
-                                (tx.value_locked_by(eHash) == (escrowVal)).trace("SV6: ") &&
-                                (feeVal == txOutputsOwner.head.value).trace("SV7: ") &&
-                                (sellerTN == SELLER_PKH.show()).trace("SV8: ") &&
-                                (buyerTN == buyerPkh.show()).trace("SV9: ") &&
-                                (minAdaVal + buyerTokenVal == txOutputsBuyer.head.value).trace("SV10: ")
+                                
+                                (tx.value_locked_by(sHash) == (swapVal)).trace("SV2.2: ") &&
+                                (tx.value_locked_by(eHash) == (escrowVal)).trace("SV2.3: ") &&
+                                (feeVal == txOutputsOwner.head.value).trace("SV2.4: ") &&
+                                (sellerTN == SELLER_PKH.show()).trace("SV2.5: ") &&
+                                (buyerTN == buyerPkh.show()).trace("SV2.6: ") &&
+                                (minAdaVal + buyerTokenVal == txOutputsBuyer.head.value).trace("SV2.7: ")
                             } else {
                                 swapVal: Value = minAdaVal + datumOutData.offeredAsset + beaconVal + sellerTokenVal;
                                 buyerVal: Value = minAdaVal + offeredAssetDiffVal + buyerTokenVal;
                                 sellerVal: Value =  minAdaVal + datumIn.askedAsset * offeredAssetDiffQty;
                                 buyerPkh: PubKeyHash = tx.signatories.head;
-                                (tx.value_locked_by(sHash) == (swapVal)).trace("SV10: ") &&
-                                (buyerVal == txOutputsBuyer.head.value).trace("SV11: ") &&
-                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV12: ") &&
-                                (feeVal == txOutputsOwner.head.value).trace("SV13: ") &&
-                                (sellerTN == SELLER_PKH.show()).trace("SV14: ") &&
-                                (buyerTN == buyerPkh.show()).trace("SV15: ")
+                                
+                                (tx.value_locked_by(sHash) == (swapVal)).trace("SV3.1: ") &&
+                                (buyerVal == txOutputsBuyer.head.value).trace("SV3.2: ") &&
+                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV3.3: ") &&
+                                (feeVal == txOutputsOwner.head.value).trace("SV3.3: ") &&
+                                (sellerTN == SELLER_PKH.show()).trace("SV3.4: ") &&
+                                (buyerTN == buyerPkh.show()).trace("SV3.5: ")
                             }) 
                         } else {
                             (if (ESCROW_ENABLED) {
@@ -128,31 +137,32 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                                 escrowVal: Value = depositAdaVal + buyerVal + sellerVal;
                                 buyerPkh: PubKeyHash = tx.signatories.head;
                                 eHash = ValidatorHash::new(ESCROW_HASH);
-                                print("swapVal" + swapVal.show());
-                                (tx.value_locked_by(sHash) == (swapVal)).trace("SV16: ") &&
-                                (tx.value_locked_by(eHash) == (escrowVal)).trace("SV17: ") &&
-                                (feeVal == txOutputsOwner.head.value).trace("SV18: ") &&
-                                (sellerTN == SELLER_PKH.show()).trace("SV19: ") &&
-                                (buyerTN == buyerPkh.show()).trace("SV20: ") &&
-                                (minAdaVal + buyerTokenVal == txOutputsBuyer.head.value).trace("SV21: ")
+
+                                (tx.value_locked_by(sHash) == (swapVal)).trace("SV4.1: ") &&
+                                (tx.value_locked_by(eHash) == (escrowVal)).trace("S4.2: ") &&
+                                (feeVal == txOutputsOwner.head.value).trace("SV4.3: ") &&
+                                (sellerTN == SELLER_PKH.show()).trace("SV4.4: ") &&
+                                (buyerTN == buyerPkh.show()).trace("SV4.5: ") &&
+                                (minAdaVal + buyerTokenVal == txOutputsBuyer.head.value).trace("SV4.6: ")
                             } else {
                                 swapVal: Value = minAdaVal + datumOutData.offeredAsset + beaconVal + sellerTokenVal;
                                 buyerVal: Value = minAdaVal + offeredAssetDiffVal + buyerTokenVal;
                                 sellerVal: Value =  datumIn.askedAsset * offeredAssetDiffQty;
                                 buyerPkh: PubKeyHash = tx.signatories.head;
-                                (tx.value_locked_by(sHash) == (swapVal)).trace("SV21: ") &&
-                                (buyerVal == txOutputsBuyer.head.value).trace("SV22: ") &&
-                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV23: ") &&
-                                (feeVal == txOutputsOwner.head.value).trace("SV24: ") &&
-                                (sellerTN == SELLER_PKH.show()).trace("SV25: ") &&
-                                (buyerTN == buyerPkh.show()).trace("SV26: ")
+
+                                (tx.value_locked_by(sHash) == (swapVal)).trace("SV5.1: ") &&
+                                (buyerVal == txOutputsBuyer.head.value).trace("SV5.2: ") &&
+                                (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV5.3: ") &&
+                                (feeVal == txOutputsOwner.head.value).trace("SV5.4: ") &&
+                                (sellerTN == SELLER_PKH.show()).trace("SV5.5: ") &&
+                                (buyerTN == buyerPkh.show()).trace("SV5.6: ")
                             })
                         })
                     },
-                    else => false.trace("SV27: ") // No inline datum found
+                    else => false.trace("SV6.1: ") // No inline datum found
                 }
             } else {
-                false.trace("SV28: ") // No datum found in outputs
+                false.trace("SV6.2: ") // No datum found in outputs
             }
         },
         Update => {
@@ -164,13 +174,14 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     datumOut: Inline => { 
                         datumOutInline: Datum = Datum::from_data(datumOut.data);
                         swapVal: Value = minAdaVal + datumOutInline.offeredAsset + beaconVal + userTokenVal;
-                        tx.is_signed_by(sellerPkh).trace("SV29: ") &&
-                        (tx.value_locked_by(sHash) == (swapVal)).trace("SV30: ") 
+                        
+                        tx.is_signed_by(sellerPkh).trace("SV7.1: ") &&
+                        (tx.value_locked_by(sHash) == (swapVal)).trace("SV7.2: ") 
                     },
-                    else => false.trace("SV31: ") // No inline datum found
+                    else => false.trace("SV7.3: ") // No inline datum found
                 }
             } else {
-                false.trace("SV32: ") // No datum found in outputs
+                false.trace("SV7.4: ") // No datum found in outputs
             }
         }
     }

@@ -1,14 +1,27 @@
-minting beacon
+minting product
 
 enum Redeemer { 
     Mint
     Burn 
 }
 
-// Beacon minting script parameters
-const APP_WALLET_PKH: ByteArray = #
-const appWalletPkh: PubKeyHash = PubKeyHash::new(APP_WALLET_PKH)
+// Product minting script parameters
+const SELLER_PKH: ByteArray = #
+const selerPkh: PubKeyHash = PubKeyHash::new(SELLER_PKH)
+const OWNER_PKH: ByteArray = #
+const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+const PRODUCT_ID: ByteArray = #
 
-func main(_, ctx: ScriptContext) -> Bool {
-    ctx.tx.is_signed_by(appWalletPkh)
+func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
+    
+    redeemer.switch {
+        Mint => {
+            ctx.tx.is_signed_by(sellerPkh).trace("PTP1.0: ") && 
+            ctx.tx.is_signed_by(ownerPkh).trace("PTP1.1: ")
+        },
+        Burn => {
+            ctx.tx.is_signed_by(sellerPkh).trace("PTP1.2: ") && 
+            ctx.tx.is_signed_by(ownerPkh).trace("PTP1.3: ")
+        }
+    }
 }

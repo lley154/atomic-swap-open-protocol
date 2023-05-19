@@ -30,18 +30,10 @@ const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
 func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     
-    //vHash : ValidatorHash = ctx.get_current_validator_hash();
     tx : Tx = ctx.tx;
 
     redeemer.switch {
         Approve => {
-            //print("escrow: buyerPkh: " + datum.buyerPkh.show());
-            //print("escrow: sellerPkh " + datum.sellerPkh.show());
-            //print("escrow: orderVal " + datum.orderVal.show());
-            //print("escrow: productVal " + datum.productVal.show());
-            //print("escrow: despositVal " + datum.depositVal.show());
-            //print("escrow: tx.value_sent_to(datum.sellerPkh)" + tx.value_sent_to(datum.sellerPkh).show());
-            //print("escrow: tx.value_sent_to(datum.buyerPkh))" + tx.value_sent_to(datum.buyerPkh).show());
             sellerVal: Value = datum.orderVal;
             buyerVal: Value = datum.depositVal + datum.productVal;
 
@@ -55,10 +47,29 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
         },
         Refund => {
-            true
+            sellerVal: Value = datum.productVal;
+            buyerVal: Value = datum.depositVal + datum.orderVal;
+
+            tx.is_signed_by(datum.buyerPkh).trace("EV8: ") &&
+            tx.is_signed_by(datum.sellerPkh).trace("EV9: ") &&
+            tx.is_signed_by(ownerPkh).trace("EV10: ") &&
+            (tx.value_sent_to(datum.sellerPkh).contains(sellerVal)).trace("EV11: ") &&
+            (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV12: ") &&
+            (datum.sellerPkh == sellerPkh).trace("EV13: ") &&
+            (datum.buyerPkh == buyerPkh).trace("E14: ")
         },
         Process => {
-            true
+            sellerVal: Value = datum.orderVal;
+            buyerVal: Value = datum.productVal;
+            ownerVal: Value = datum.depositVal;
+
+            tx.is_signed_by(datum.sellerPkh).trace("EV15: ") &&
+            tx.is_signed_by(ownerPkh).trace("EV15: ") &&
+            (tx.value_sent_to(datum.sellerPkh).contains(sellerVal)).trace("EV16: ") &&
+            (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV17: ") &&
+            (tx.value_sent_to(ownerPkh).contains(ownerVal)).trace("EV18: ") &&
+            (datum.sellerPkh == sellerPkh).trace("EV19: ") &&
+            (datum.buyerPkh == buyerPkh).trace("E20: ")
         }
     }
 }

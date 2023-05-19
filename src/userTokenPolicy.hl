@@ -27,8 +27,8 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             );
             userTokenVal : Value = Value::new(userTokenAssetclass, red.qty);
             userPkh: PubKeyHash = PubKeyHash::new(red.pkhBA);
-            ctx.tx.is_signed_by(ownerPkh).trace("UTP1: ") &&
-            ctx.tx.is_signed_by(userPkh).trace("UTP2: ") &&
+            tx.is_signed_by(ownerPkh).trace("UTP1: ") &&
+            tx.is_signed_by(userPkh).trace("UTP2: ") &&
             (tx.minted == userTokenVal).trace("UTP3: ")
         },
         Burn => { 
