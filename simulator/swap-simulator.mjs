@@ -45,7 +45,7 @@ export {
 const network = new NetworkEmulator();
 
 // Network Parameters
-const networkParamsFile = await fs.readFile('./src/preprod.json', 'utf8');
+const networkParamsFile = await fs.readFile('./contracts/preprod.json', 'utf8');
 const networkParams = new NetworkParams(JSON.parse(networkParamsFile.toString()));
 
 // Set the Helios compiler optimizer flag
@@ -60,7 +60,7 @@ const minChangeAda = BigInt(1_000_000);  // minimum lovelace needed to send back
 const owner = network.createWallet(BigInt(10_000_000));
 
 // Create a new program swap script
-const swapScript = await fs.readFile('./src/swap.hl', 'utf8');
+const swapScript = await fs.readFile('./contracts/swap.hl', 'utf8');
 const swapProgram = Program.new(swapScript);
 
 // Define the swap config object which is used to uniquely create
@@ -99,7 +99,7 @@ class SwapConfig {
 }
 
 // Compile the escrow script
-const escrowScript = await fs.readFile('./src/escrow.hl', 'utf8');
+const escrowScript = await fs.readFile('./contracts/escrow.hl', 'utf8');
 const escrowProgram = Program.new(escrowScript);
 
 // Define the escrow config object which is used to uniquely create
@@ -115,7 +115,7 @@ class EscrowConfig {
 }
 
 // Compile the Beacon minting script
-const beaconScript = await fs.readFile('./src/beacon.hl', 'utf8');
+const beaconScript = await fs.readFile('./contracts/beacon.hl', 'utf8');
 const beaconProgram = Program.new(beaconScript);
 beaconProgram.parameters = {["VERSION"] : "1.0"};
 beaconProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
@@ -123,7 +123,7 @@ const beaconCompiledProgram = beaconProgram.compile(optimize);
 const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
 
 // Compile the Points minting script
-const pointsScript = await fs.readFile('./src/points.hl', 'utf8');
+const pointsScript = await fs.readFile('./contracts/points.hl', 'utf8');
 const pointsProgram = Program.new(pointsScript);
 pointsProgram.parameters = {["VERSION"] : "1.0"};
 pointsProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
@@ -135,7 +135,7 @@ const pointsTN = textToBytes("Points Token");
 const pointsToken = [[pointsTN, BigInt(1)]];
 
 // Compile the Rewards minting script
-const rewardsScript = await fs.readFile('./src/rewards.hl', 'utf8');
+const rewardsScript = await fs.readFile('./contracts/rewards.hl', 'utf8');
 const rewardsProgram = Program.new(rewardsScript);
 rewardsProgram.parameters = {["VERSION"] : "1.0"};
 rewardsProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
@@ -147,11 +147,11 @@ const rewardsTN =  textToBytes("Rewards Token");
 const rewardsToken = [[rewardsTN, BigInt(1)]];
 
 // Read in the user token minting script
-const userTokenPolicyScript = await fs.readFile('./src/userTokenPolicy.hl', 'utf8');
+const userTokenPolicyScript = await fs.readFile('./contracts/userTokenPolicy.hl', 'utf8');
 const userTokenPolicyProgram = Program.new(userTokenPolicyScript);
 
 // Read in the user token validator script
-const userTokenValScript = await fs.readFile('./src/userTokenValidator.hl', 'utf8');
+const userTokenValScript = await fs.readFile('./contracts/userTokenValidator.hl', 'utf8');
 const userTokenValProgram = Program.new(userTokenValScript);
 
 /**

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "sim": "node ./simulator/run-usda-asset-swap.mjs",
+    "sim": "node ./simulator/ada-swap.mjs",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run"
