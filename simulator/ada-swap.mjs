@@ -12,13 +12,14 @@ import {
     closeSwap,
     initSwap,
     getMphTnQty,
-    minAda,
     mintUserTokens,
     network,
     SwapConfig,
     showWalletUTXOs,
     updateSwap,
 } from "./swap-simulator.mjs"
+
+const minAda = BigInt(3_500_000);
 
 // Create seller wallet - we add 10ADA to start
 const seller = network.createWallet(BigInt(15_000_000));
@@ -30,7 +31,7 @@ const buyer = network.createWallet(BigInt(15_000_000));
 network.tick(BigInt(10));
 
 // Create the seller token
-const sellerToken = await mintUserTokens(seller, 2);
+const sellerToken = await mintUserTokens(seller, 2, minAda);
 
 // Create the asset value being asked for
 const askedAssetValue = new Value(BigInt(15_000_000));
@@ -82,7 +83,7 @@ const swapConfig = new SwapConfig("1.0",                // script version
                                   sellerToken.mph,
                                   1_000_000,            // 1 Ada service fee
                                   owner.pubKeyHash.hex,
-                                  2_500_000,            // minAda amt
+                                  minAda, 
                                   0                     // deposit
                                   ); 
 
