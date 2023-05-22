@@ -586,7 +586,7 @@ const getEscrowDatumInfo = async (utxo) => {
  * @param {WalletEmulator} user
  * @param {number} qty
  */
-const mintUserTokens = async (user, qty, minAda) => {
+const mintUserTokens = async (user, minAda) => {
 
     try {
         console.log("");
@@ -594,17 +594,19 @@ const mintUserTokens = async (user, qty, minAda) => {
         console.log("************ PRE-TEST *************");
         await showWalletUTXOs("User", user);
 
-        // Compile the user token policy script
-        userTokenPolicyProgram.parameters = {["VERSION"] : "1.0"};
-        userTokenPolicyProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
-        const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
-        const userTokenMPH = userTokenPolicyCompiledProgram.mintingPolicyHash;
-
         // Compile the user token validator script
         userTokenValProgram.parameters = {["VERSION"] : "1.0"};
         userTokenValProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
         const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
         const userTokenValHash = userTokenValCompiledProgram.validatorHash;
+
+        // Compile the user token policy script
+        userTokenPolicyProgram.parameters = {["VERSION"] : "1.0"};
+        userTokenPolicyProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
+        userTokenPolicyProgram.parameters = {["VHASH"] : userTokenValHash.hex};
+        userTokenPolicyProgram.parameters = {["MIN_ADA"] : minAda};
+        const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
+        const userTokenMPH = userTokenPolicyCompiledProgram.mintingPolicyHash;
 
         // Get the UTxOs in User wallet
         const utxosUser = await network.getUtxos(user.address);
@@ -622,48 +624,41 @@ const mintUserTokens = async (user, qty, minAda) => {
         const today = "|" + Date.now().toString();
         const userTokenTN = user.pubKeyHash.hex + today;
 
-        // Create the user token
-        const userToken = [[textToBytes(userTokenTN), BigInt(qty)]];
+        // Create the user token and reference token
+        const userTokens = [[textToBytes(userTokenTN), BigInt(2)]];
 
         // Create the user token poicy redeemer 
         const userTokenPolicyRedeemer = (new userTokenPolicyProgram
             .types.Redeemer
-            .Mint(user.pubKeyHash.hex, 
-                  today, 
-                  BigInt(qty)))
+            .Mint(user.pubKeyHash.hex, today))
             ._toUplcData();
         
-        const pkh = new ByteArrayData(user.pubKeyHash.hex);
-        console.log("pkh test: ", pkh.toSchemaJson());
+        //const pkh = new ByteArrayData(user.pubKeyHash.hex);
+        //console.log("pkh test: ", pkh.toSchemaJson());
 
         // Add the mint to the tx
         tx.mintTokens(
             userTokenMPH,
-            userToken,
+            userTokens,
             userTokenPolicyRedeemer
         )
 
-        // Create the output for the reference user token
-        const userTokenRef = [[textToBytes(userTokenTN), BigInt(1)]];
-        const userTokenRefAsset = new Assets([[userTokenMPH, userTokenRef]]);
-        const userTokenRefValue = new Value(minAda, userTokenRefAsset);
-        console.log("userTokenRefValue: ", userTokenRefValue.toSchemaJson());
+        // Create the user token
+        const userToken = [[textToBytes(userTokenTN), BigInt(1)]];
+        const userTokenAsset = new Assets([[userTokenMPH, userToken]]);
+        const userTokenValue = new Value(minAda, userTokenAsset);
+        console.log("userTokenValue: ", userTokenValue.toSchemaJson());
         
+        // Create the output for the reference user token
         tx.addOutput(new TxOutput(
             Address.fromHashes(userTokenValHash),
-            userTokenRefValue
+            userTokenValue
         ));
         
-        // Create the output for the user tokens
-        assert(qty >= 2);  // must mint a minimum of 2 tokens
-        const userTokenWallet = [[textToBytes(userTokenTN), BigInt(qty - 1)]];
-        const userTokenWalletAsset = new Assets([[userTokenMPH, userTokenWallet]]);
-        const userTokenWalletValue = new Value(minAda, userTokenWalletAsset);
-        console.log("userTokenWalletValue: ", userTokenWalletValue.toSchemaJson());
-        
+        // Create the output for the user token
         tx.addOutput(new TxOutput(
             user.address,
-            userTokenWalletValue
+            userTokenValue
         ));
 
         // Add app wallet & user pkh as a signer which is required to mint user token

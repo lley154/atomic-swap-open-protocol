@@ -123,6 +123,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         (datumIn.askedAssetVal.get(askedAssetclass) > 0).trace("SV2.2: ") &&
                         // Check that the offeredAsset in the datum is what is offered as part of this swap
                         (datumIn.offeredAssetVal.get(offeredAssetclass) > 0).trace("SV2.3: ") &&
+                        // TODO check that reference token exists in inputs locked at validator address
                         (if (ESCROW_ENABLED) {
                             swapVal: Value = checkAdaVal(datumOutData.offeredAssetVal) + beaconVal + sellerTokenVal;
                             buyerVal: Value = offeredAssetDiffVal;
@@ -151,10 +152,10 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                             (buyerTN == buyerPkh.show()).trace("SV3.5: ")
                         }) 
                     },
-                    else => false.trace("SV6.1: ") // No inline datum found
+                    else => false.trace("SV4.1: ") // No inline datum found
                 }
             } else {
-                false.trace("SV6.2: ") // No datum found in outputs
+                false.trace("SV4.2: ") // No datum found in outputs
             }
         },
         Update => {
@@ -168,13 +169,13 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         datumOutInline: Datum = Datum::from_data(datumOut.data);
                         swapVal: Value = checkAdaVal(datumOutInline.offeredAssetVal) + beaconVal + userTokenVal;
                         
-                        tx.is_signed_by(sellerPkh).trace("SV7.1: ") &&
-                        (tx.value_locked_by(sHash) == (swapVal)).trace("SV7.2: ") 
+                        tx.is_signed_by(sellerPkh).trace("SV5.1: ") &&
+                        (tx.value_locked_by(sHash) == (swapVal)).trace("SV5.2: ") 
                     },
-                    else => false.trace("SV7.3: ") // No inline datum found
+                    else => false.trace("SV5.3: ") // No inline datum found
                 }
             } else {
-                false.trace("SV7.4: ") // No datum found in outputs
+                false.trace("SV5.4: ") // No datum found in outputs
             }
         }
     }

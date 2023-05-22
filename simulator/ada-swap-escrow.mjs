@@ -35,7 +35,7 @@ const buyer = network.createWallet(BigInt(20_000_000));
 network.tick(BigInt(10));
 
 // Create the seller token
-const sellerToken = await mintUserTokens(seller, 2, minAda);
+const sellerToken = await mintUserTokens(seller, minAda);
 
 // Create the asset value being asked for
 const askedAssetValue = new Value(BigInt(15_000_000));
@@ -126,7 +126,7 @@ await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue
 const swapAskedAssetValue = new Value(BigInt(25_000_000));
 
 // Create the buyer token
-const buyerToken = await mintUserTokens(buyer, 2);
+const buyerToken = await mintUserTokens(buyer, minAda);
 
 // Swap 25 Ada and get as many product tokens as possible
 const orderId = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapConfig, escrowConfig, sellerToken.tn, buyerToken.tn);

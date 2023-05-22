@@ -4,7 +4,6 @@ enum Redeemer {
     Mint {
         pkhBA: ByteArray
         timestampBA: String
-        qty: Int
     }
     Burn 
 }
@@ -13,6 +12,10 @@ enum Redeemer {
 const VERSION: ByteArray = #
 const OWNER_PKH: ByteArray = #
 const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+// Validator hash the locks the reference reference token
+const VHASH: ByteArray = # 
+const MIN_ADA: Int = 2_500_000
+const minAdaVal: Value = Value::lovelace(MIN_ADA)
 
 func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     
@@ -26,11 +29,16 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 ctx.get_current_minting_policy_hash(), 
                 tnBA
             );
-            userTokenVal : Value = Value::new(userTokenAssetclass, red.qty);
+            // Define user and reference token values
+            userTokenVal : Value = Value::new(userTokenAssetclass, 1);
+            refTokenVal : Value = Value::new(userTokenAssetclass, 1);
             userPkh: PubKeyHash = PubKeyHash::new(red.pkhBA);
+            vHash: ValidatorHash = ValidatorHash::new(VHASH);
+
             tx.is_signed_by(ownerPkh).trace("UTP1: ") &&
             tx.is_signed_by(userPkh).trace("UTP2: ") &&
-            (tx.minted == userTokenVal).trace("UTP3: ")
+            (tx.minted == (userTokenVal + refTokenVal)).trace("UTP3: ") &&
+            (tx.value_locked_by(vHash) == minAdaVal + refTokenVal).trace("UTP4: ")
         },
         Burn => { 
             true 

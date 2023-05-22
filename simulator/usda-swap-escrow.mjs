@@ -25,17 +25,17 @@ import {
 
 const minAda = BigInt(2_500_000);
 
-// Create seller wallet - we add 10ADA to start
-const seller = network.createWallet(BigInt(15_000_000));
+// Create seller wallet - we add 20ADA to start
+const seller = network.createWallet(BigInt(20_000_000));
 
-// Create buyer wallet - we add 10ADA to start
-const buyer = network.createWallet(BigInt(15_000_000));
+// Create buyer wallet - we add 20ADA to start
+const buyer = network.createWallet(BigInt(20_000_000));
 
 // Now lets tick the network on 10 slots,
 network.tick(BigInt(10));
 
 // Create the seller token
-const sellerToken = await mintUserTokens(seller, 2, minAda);
+const sellerToken = await mintUserTokens(seller, minAda);
 
 // Create product token to buy
 const productMPH = MintingPolicyHash.fromHex(
@@ -160,7 +160,7 @@ swapUSDATokenAsset.addComponent(
 const swapAskedAssetValue = new Value(minAda, swapUSDATokenAsset);
 
 // Create the buyer token
-const buyerToken = await mintUserTokens(buyer, 2);
+const buyerToken = await mintUserTokens(buyer, minAda);
 
 // Swap 50 usda coins and get as many product tokens as possible
 const orderId = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapConfig, escrowConfig, sellerToken.tn, buyerToken.tn);
