@@ -1,118 +1,263 @@
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
+import Head from 'next/head'
+import MintNFT from '../components/MintNFT';
+import type { NextPage } from 'next'
+import styles from '../styles/Home.module.css'
+import { useState, useEffect } from "react";
+import WalletInfo from '../components/WalletInfo';
+import Program from '../contracts/nft.hl';
+import {
+  Assets,
+  Address,
+  ByteArrayData,
+  Cip30Handle,
+  Cip30Wallet,
+  ConstrData,
+  hexToBytes,
+  NetworkParams,
+  Value,
+  TxOutput,
+  Tx,
+  WalletHelper} from "@hyperionbt/helios";
+ 
 
-const inter = Inter({ subsets: ['latin'] })
+declare global {
+  interface Window {
+      cardano:any;
+  }
+}
 
-export default function Home() {
+const Home: NextPage = () => {
+
+  const optimize = false;
+  //const networkParamsUrl = "https://d1t0d7c2nekuk0.cloudfront.net/preprod.json";
+  const networkParamsUrl = "https://d1t0d7c2nekuk0.cloudfront.net/preview.json";
+  const [walletInfo, setWalletInfo] = useState({ balance : ''});
+  const [walletIsEnabled, setWalletIsEnabled] = useState(false);
+  const [whichWalletSelected, setWhichWalletSelected] = useState(undefined);
+  const [walletAPI, setWalletAPI] = useState<undefined | any>(undefined);
+  const [walletHelper, setWalletHelper] = useState<undefined | any>(undefined);
+  
+  const [tx, setTx] = useState({ txId : '' });
+
+  useEffect(() => {
+    const checkWallet = async () => {
+
+      setWalletIsEnabled(await checkIfWalletFound());
+    }
+    checkWallet();
+  }, [whichWalletSelected]);
+
+  useEffect(() => {
+    const enableSelectedWallet = async () => {
+      if (walletIsEnabled) {
+        await enableWallet();
+      }
+    }
+    enableSelectedWallet();
+  }, [walletIsEnabled]);
+
+  useEffect(() => {
+    const updateWalletInfo = async () => {
+
+        if (walletIsEnabled) {
+            const _balance = await getBalance() as string;
+            setWalletInfo({
+              ...walletInfo,
+              balance : _balance
+            });
+        }
+    }
+    updateWalletInfo();
+  }, [walletAPI]);
+
+  // user selects what wallet to connect to
+  const handleWalletSelect = (obj : any) => {
+    const whichWalletSelected = obj.target.value
+    setWhichWalletSelected(whichWalletSelected);
+  }
+
+  const checkIfWalletFound = async () => {
+
+    let walletFound = false;
+
+    const walletChoice = whichWalletSelected;
+    if (walletChoice === "nami") {
+        walletFound = !!window?.cardano?.nami;
+    } else if (walletChoice === "eternl") {
+        walletFound = !!window?.cardano?.eternl;
+    }
+    return walletFound;
+  }
+
+  const enableWallet = async () => {
+
+      try {
+        const walletChoice = whichWalletSelected;
+        if (walletChoice === "nami") {
+            const handle: Cip30Handle = await window.cardano.nami.enable();
+            const walletAPI = new Cip30Wallet(handle);
+            const walletHelper = new WalletHelper(walletAPI);
+            setWalletHelper(walletHelper);
+            setWalletAPI(walletAPI);
+          } else if (walletChoice === "eternl") {
+            const handle: Cip30Handle = await window.cardano.eternl.enable();
+            const walletAPI = new Cip30Wallet(handle);
+            const walletHelper = new WalletHelper(walletAPI);
+            setWalletHelper(walletHelper);
+            setWalletAPI(walletAPI);
+          }
+    } catch (err) {
+        console.log('enableWallet error', err);
+    }
+  }
+
+  const getBalance = async () => {
+    try {
+        const balanceAmountValue  = await walletHelper.calcBalance();
+        const balanceAmount = balanceAmountValue.lovelace;
+        const walletBalance : BigInt = BigInt(balanceAmount);
+        return walletBalance.toLocaleString();
+    } catch (err) {
+        console.log('getBalance error: ', err);
+    }
+  }
+
+  const mintNFT = async (params : any) => {
+
+    // Re-enable wallet API since wallet account may have been changed
+    await enableWallet();
+
+    const address = params[0];
+    const name = params[1];
+    const description = params[2];
+    const img = params[3];
+    const minAda : number = 2000000; // minimum lovelace needed to send an NFT
+    const maxTxFee: number = 500000; // maximum estimated transaction fee
+    const minChangeAmt: number = 1000000; // minimum lovelace needed to be sent back as change
+    const minAdaVal = new Value(BigInt(minAda));
+    const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));
+
+    // Get wallet UTXOs
+    const utxos = await walletHelper.pickUtxos(minUTXOVal);
+
+    // Get change address
+    const changeAddr = await walletHelper.changeAddress;
+
+    // Start building the transaction
+    const tx = new Tx();
+
+    // Add the UTXO as inputs
+    tx.addInputs(utxos[0]);
+
+    const nftProgram = new Program();
+    nftProgram.parameters = {["TX_ID"] : utxos[0][0].txId.hex};
+    nftProgram.parameters = {["TX_IDX"] : utxos[0][0].utxoIdx};
+    nftProgram.parameters = {["TN"] : name};
+
+    // Compile the helios minting script
+    const nftCompiledProgram = nftProgram.compile(optimize);
+
+    // Add the script as a witness to the transaction
+    tx.attachScript(nftCompiledProgram);
+
+    // Construct the NFT that we will want to send as an output
+    const nftTokenName = ByteArrayData.fromString(name).toHex();
+    const tokens: [number[], bigint][] = [[hexToBytes(nftTokenName), BigInt(1)]];
+
+    // Create an empty Redeemer because we must always send a Redeemer with
+    // a plutus script transaction even if we don't actually use it.
+    const mintRedeemer = new ConstrData(0, []);
+
+    // Indicate the minting we want to include as part of this transaction
+    tx.mintTokens(
+      nftCompiledProgram.mintingPolicyHash,
+      tokens,
+      mintRedeemer
+    )
+
+    // Construct the output and include both the minimum Ada as well as the minted NFT
+    tx.addOutput(new TxOutput(
+      Address.fromBech32(address),
+      new Value(minAdaVal.lovelace, new Assets([[nftCompiledProgram.mintingPolicyHash, tokens]]))
+    ));
+
+    const networkParams = new NetworkParams(
+      await fetch(networkParamsUrl)
+          .then(response => response.json())
+    )
+
+    // Attached the metadata for the minting transaction
+    tx.addMetadata(721, {"map": [[nftCompiledProgram.mintingPolicyHash.hex, {"map": [[name,
+                                      {
+                                        "map": [["name", name],
+                                                ["description", description],
+                                                ["image", img]
+                                              ]
+                                      }
+                                  ]]}
+                                ]]
+                        }
+                  );
+
+    console.log("tx before final", tx.dump());
+
+    // Send any change back to the buyer
+    await tx.finalize(networkParams, changeAddr, utxos[1]);
+
+    console.log("Verifying signature...");
+    const signatures = await walletAPI.signTx(tx);
+    tx.addSignatures(signatures);
+
+    console.log("tx after final", tx.dump());
+    console.log("Submitting transaction...");
+    const txHash = await walletAPI.submitTx(tx);
+
+    console.log("txHash", txHash.hex);
+    setTx({ txId: txHash.hex });
+
+   }
+
+
   return (
-    <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
-    >
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">pages/index.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <div className={styles.container}>
+      <Head>
+        <title>Helios Tx Builder</title>
+        <meta name="description" content="Littercoin web tools page" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+      <main className={styles.main}>
+        <h3 className={styles.title}>
+          Helios Tx Builder
+        </h3>
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+        <div className={styles.borderwallet}>
+            <p>
+              Connect to your wallet
+            </p>
+            <p className={styles.borderwallet}>
+              <input type="radio" id="nami" name="wallet" value="nami" onChange={handleWalletSelect}/>
+                <label>Nami</label>
+            </p>
+            <p className={styles.borderwallet}>
+                <input type="radio" id="eternl" name="wallet" value="eternl" onChange={handleWalletSelect}/>
+                <label>Eternl</label>
+            </p>
+          </div>
+            {!tx.txId && walletIsEnabled && <div className={styles.border}><WalletInfo walletInfo={walletInfo}/></div>}
+            {tx.txId && <div className={styles.border}><b>Transaction Success!!!</b>
+            <p>TxId &nbsp;&nbsp;<a href={"https://preprod.cexplorer.io/tx/" + tx.txId} target="_blank" rel="noopener noreferrer" >{tx.txId}</a></p>
+            <p>Please wait until the transaction is confirmed on the blockchain and reload this page before doing another transaction</p>
+          </div>}
+          {walletIsEnabled && !tx.txId && <div className={styles.border}><MintNFT onMintNFT={mintNFT}/></div>}
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+      </main>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
+      <footer className={styles.footer}>
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+      </footer>
+    </div>
   )
 }
+
+export default Home

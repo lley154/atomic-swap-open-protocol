@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@hyperionbt/helios": "^0.13.35",
+    "@hyperionbt/helios-loader": "^0.1.5",
     "@types/react": "18.2.0",
     "@types/react-dom": "18.2.1",
     "@vitest/ui": "^0.30.1",
