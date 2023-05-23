@@ -4,19 +4,19 @@ import {
   Address,
   Assets, 
   bytesToHex,
-  ByteArrayData,
+  ByteArray,
   Datum,
   hexToBytes,
   MintingPolicyHash,
   NetworkEmulator,
   NetworkParams, 
   Program,
+  TxRefInput,
   Value, 
   textToBytes,
   TxOutput,
   Tx,
   UTxO,
-  ByteArray,
   PubKeyHash,
   WalletEmulator,
 } from "@hyperionbt/helios";
@@ -76,6 +76,7 @@ class SwapConfig {
                 escrowEnabled,
                 escrowHash,
                 userTokenMPH,
+                userTokenVHash,
                 serviceFee,
                 ownerPkh,
                 minAda,
@@ -90,6 +91,7 @@ class SwapConfig {
       this.escrowEnabled = escrowEnabled;
       this.escrowHash = escrowHash;
       this.userTokenMPH = userTokenMPH;
+      this.userTokenVHash = userTokenVHash;
       this.serviceFee = serviceFee;
       this.ownerPkh = ownerPkh;
       this.minAda = minAda;
@@ -200,6 +202,7 @@ const showSwapScriptUTXOs = async (swapConfig) => {
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
     swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+    swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
     swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
     swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
     swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
@@ -287,6 +290,7 @@ const getSwapUTXO = async (swapConfig) => {
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
     swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+    swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
     swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
     swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
     swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
@@ -331,6 +335,52 @@ const getEscrowUTXO = async (orderId, buyerPkh, sellerPkh, escrowConfig) => {
             console.log("");
             console.log("getEscrowUTXO: UTXO with order found");
             return utxo;
+        }
+    }
+}
+
+/**
+ * Get the UTXO at the reference user token validator script
+ * @package
+ * @param {string} sellerTokenMPH
+ * @param {string} sellerTokenTN
+ * @returns {UTxO}
+ */
+const getRefTokenUTXO = async (userTokenMPH, sellerTokenTN, minAda) => {
+
+    const sellerToken = [[textToBytes(sellerTokenTN), BigInt(1)]];
+    const sellerTokenAsset = new Assets([[MintingPolicyHash.fromHex(userTokenMPH), sellerToken]]);
+    const sellerTokenValue = new Value(BigInt(minAda), sellerTokenAsset);
+    
+    //const sellerTokenAsset = new Assets();
+    //sellerTokenAsset.addComponent(
+    //    sellerTokenMPH,
+    //    sellerTokenTN,
+    //    BigInt(1)
+    //);
+    
+    // Compile the user token validator script
+    userTokenValProgram.parameters = {["VERSION"] : "1.0"};
+    userTokenValProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
+    const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
+    const userTokenValHash = userTokenValCompiledProgram.validatorHash;
+
+    console.log("getRefTokenUTXO: sellerTokenValue", sellerTokenValue.toSchemaJson());
+    
+    const userTokenUtxos = await network.getUtxos(Address.fromHashes(userTokenValHash));
+    for (const utxo of userTokenUtxos) {
+        console.log("getRefTokenUTXO: utxo.origOutput.value.toSchemaJson()", utxo.origOutput.value.toSchemaJson());
+
+        // Only one reference UTXO with the matching seller MPH should exist
+        if (utxo.origOutput.value.eq(sellerTokenValue)) { 
+            console.log("");
+            console.log("getRefTokenUTXO: reference user token UTXO found");
+            const refUtxo = new TxRefInput(
+                utxo.txId,
+                utxo.utxoIdx,
+                utxo.origOutput
+            )
+            return refUtxo;
         }
     }
 }
@@ -695,7 +745,8 @@ const mintUserTokens = async (user, minAda) => {
         await showScriptUTXOs(Address.fromHashes(userTokenValHash), "User Token");
         return {
             mph: userTokenMPH.hex,
-            tn: userTokenTN
+            tn: userTokenTN,
+            vHash: userTokenValHash.hex
         }
 
     } catch (err) {
@@ -730,6 +781,7 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
         swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
@@ -857,6 +909,7 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
         swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
@@ -985,6 +1038,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
         swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
@@ -1008,7 +1062,10 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
         
         // Get the UTXO that has the swap datum
         const swapUtxo = await getSwapUTXO(swapConfig);
-        tx.addInput(swapUtxo, swapRedeemer);   
+        tx.addInput(swapUtxo, swapRedeemer); 
+        
+        const refTokenUtxo = await getRefTokenUTXO(swapConfig.userTokenMPH, sellerTokenTN, swapConfig.minAda);
+        tx.addRefInput(refTokenUtxo);
         
         // Calc the amount of products remaining
         const orderDetails = await calcOrderDetails(swapUtxo, swapAskedAssetValue);
@@ -1191,6 +1248,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
         swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
@@ -1218,6 +1276,9 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         // Get the UTXO that has the swap datum
         const swapUtxo = await getSwapUTXO(swapConfig);
         tx.addInput(swapUtxo, swapRedeemer);   
+
+        const refTokenUtxo = await getRefTokenUTXO(swapConfig.userTokenMPH, sellerTokenTN, swapConfig.minAda);
+        tx.addRefInput(refTokenUtxo);
         
         // Calc the amount of products to buy
         const orderDetails = await calcOrderDetails(swapUtxo, swapAskedAssetValue);
@@ -1573,6 +1634,7 @@ const closeSwap = async (seller, swapConfig, sellerTokenTN) => {
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
+        swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
         swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
         swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};

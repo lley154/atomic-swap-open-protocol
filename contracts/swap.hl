@@ -29,6 +29,10 @@ const ESCROW_ENABLED: Bool = false
 const ESCROW_HASH: ByteArray = #
 const USER_TOKEN_MPH: ByteArray = #
 const userTokenMph: MintingPolicyHash = MintingPolicyHash::new(USER_TOKEN_MPH)
+const USER_TOKEN_VHASH: ByteArray = #
+const userTokenVHash: ValidatorHash = ValidatorHash::new(USER_TOKEN_VHASH)
+const userTokenCred: Credential = Credential::new_validator(userTokenVHash)
+const userTokenAddr: Address = Address::new(userTokenCred, Option[StakingCredential]::None)
 const SERVICE_FEE: Int = 0
 const OWNER_PKH: ByteArray = #
 const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
@@ -95,6 +99,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         },
         red: Swap => { 
 
+            txRefInput : []TxInput = tx.ref_inputs;
             txOutputsBuyer : []TxOutput = tx.outputs_sent_to(red.buyerPkh);
             txOutputsOwner : []TxOutput = tx.outputs_sent_to(ownerPkh);
             if (txOutputsContract.length == 1 && txOutputsBuyer.length >= 1) {
@@ -123,7 +128,10 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         (datumIn.askedAssetVal.get(askedAssetclass) > 0).trace("SV2.2: ") &&
                         // Check that the offeredAsset in the datum is what is offered as part of this swap
                         (datumIn.offeredAssetVal.get(offeredAssetclass) > 0).trace("SV2.3: ") &&
-                        // TODO check that reference token exists in inputs locked at validator address
+                        // Check that reference token exists and locked at the user token validator
+                        (txRefInput.length == 1).trace("SV2.4: ") &&
+                        (txRefInput.head.output.value.contains(sellerTokenVal)).trace("SV2.5: ") &&
+                        (txRefInput.head.output.address == userTokenAddr).trace("SV2.6: ") &&
                         (if (ESCROW_ENABLED) {
                             swapVal: Value = checkAdaVal(datumOutData.offeredAssetVal) + beaconVal + sellerTokenVal;
                             buyerVal: Value = offeredAssetDiffVal;
@@ -132,12 +140,12 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                             buyerPkh: PubKeyHash = tx.signatories.head;
                             eHash = ValidatorHash::new(ESCROW_HASH);
                             
-                            (tx.value_locked_by(sHash) == (swapVal)).trace("SV2.4: ") &&
-                            (tx.value_locked_by(eHash) == (escrowVal)).trace("SV2.5: ") &&
-                            (feeVal == txOutputsOwner.head.value).trace("SV2.6: ") &&
-                            (sellerTN == SELLER_PKH.show()).trace("SV2.7: ") &&
-                            (buyerTN == buyerPkh.show()).trace("SV2.8: ") &&
-                            (checkAdaVal(buyerTokenVal) == txOutputsBuyer.head.value).trace("SV2.9: ")
+                            (tx.value_locked_by(sHash) == (swapVal)).trace("SV2.7: ") &&
+                            (tx.value_locked_by(eHash) == (escrowVal)).trace("SV2.8: ") &&
+                            (feeVal == txOutputsOwner.head.value).trace("SV2.9: ") &&
+                            (sellerTN == SELLER_PKH.show()).trace("SV2.10: ") &&
+                            (buyerTN == buyerPkh.show()).trace("SV2.11: ") &&
+                            (checkAdaVal(buyerTokenVal) == txOutputsBuyer.head.value).trace("SV2.12: ")
                         } else {
                             swapVal: Value = checkAdaVal(datumOutData.offeredAssetVal) + beaconVal + sellerTokenVal;
                             buyerVal: Value = checkAdaVal(offeredAssetDiffVal) + buyerTokenVal;

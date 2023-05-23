@@ -97,6 +97,7 @@ const swapConfig = new SwapConfig("1.0",                // script version
                                   true,                 // set escrow enabled to true
                                   escrowCompiledProgram.validatorHash.hex,
                                   sellerToken.mph,
+                                  sellerToken.vHash,
                                   1_000_000,            // 1 Ada service fee
                                   owner.pubKeyHash.hex,
                                   minAda,

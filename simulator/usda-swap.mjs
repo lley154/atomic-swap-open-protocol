@@ -102,6 +102,7 @@ const swapConfig = new SwapConfig("1.0",                // script version
                                   false,                // escrow not enabled
                                   "",                   // escrow address n/a 
                                   sellerToken.mph,
+                                  sellerToken.vHash,
                                   1_000_000,            // 1 Ada service fee
                                   owner.pubKeyHash.hex,
                                   minAda, 
