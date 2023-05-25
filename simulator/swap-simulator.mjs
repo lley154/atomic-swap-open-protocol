@@ -31,7 +31,7 @@ export {
     closeSwap,
     escrowProgram,
     EscrowConfig,
-    initSwap,
+    openSwap,
     getMphTnQty,
     mintUserTokens,
     optimize,
@@ -64,8 +64,6 @@ const networkParams = network.initNetworkParams(networkParamsPreview);
 let optimize = false;
 
 // Global variables
-//const minAda = BigInt(2_500_000);        // minimum lovelace locked at swap contract
-//const minAdaVal = new Value(minAda);
 const minChangeAda = BigInt(1_000_000);  // minimum lovelace needed to send back as change
 
 // Create owner wallet - we add 10ADA to start
@@ -782,7 +780,7 @@ const mintUserTokens = async (user, minAda) => {
  * @param {Value} askedAssetValue
  * @param {Value} offeredAssetValue
  */
-const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerTokenTN) => {
+const openSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerTokenTN) => {
 
     try {
         console.log("");
@@ -858,7 +856,7 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
                             .add(beaconValue)
                             .add(sellerTokenValue);
     
-        console.log("initSwap: swapValue: ", swapValue.toSchemaJson());
+        console.log("openSwap: swapValue: ", swapValue.toSchemaJson());
         tx.addOutput(new TxOutput(
             Address.fromHashes(swapCompiledProgram.validatorHash),
             swapValue,
@@ -908,7 +906,7 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
         return true;
 
     } catch (err) {
-        console.error("initSwap tx failed", err);
+        console.error("openSwap tx failed", err);
         return false;
     }
 }

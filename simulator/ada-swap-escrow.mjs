@@ -12,7 +12,7 @@ import {
     closeSwap,
     escrowProgram,
     EscrowConfig,
-    initSwap,
+    openSwap,
     getMphTnQty,
     owner,
     mintUserTokens,
@@ -106,7 +106,7 @@ const swapConfig = new SwapConfig("1.0",                // script version
 
 
 // Initialize with price of 15 Ada and 5 product tokens
-await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
+await openSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
 
 // Create the updated asset value being asked for
 const updatedAskedAssetValue = new Value(BigInt(10_000_000));

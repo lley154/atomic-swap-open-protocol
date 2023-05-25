@@ -1,5 +1,6 @@
 import axios from 'axios';
 import Head from 'next/head'
+import OpenSwap from '@/components/OpenSwap';
 import MintUserToken from '../components/MintUserToken';
 import type { NextPage } from 'next'
 import styles from '../styles/Home.module.css'
@@ -8,6 +9,8 @@ import WalletInfo from '../components/WalletInfo';
 import LoadingSpinner from '../components/LoadingSpinner';
 import UserTokenPolicy from '../contracts/userTokenPolicy.hl';
 import UserTokenValidator from '../contracts/userTokenValidator.hl';
+import { getNetworkParams,
+         signSubmitTx } from '../utils/network';
 import {
   Assets,
   Address,
@@ -34,42 +37,19 @@ declare global {
   }
 }
 
+// Helios config settings
 config.AUTO_SET_VALIDITY_RANGE = false;
 
+// Global variables
+const minAda : number = 2_500_000; // minimum lovelace needed to send an NFT
+const maxTxFee: number = 500_000; // maximum estimated transaction fee
+const minChangeAmt: number = 1_000_000; // minimum lovelace needed to be sent back as change
 const ownerPkh = new PubKeyHash(process.env.NEXT_PUBLIC_OWNER_PKH as string);
 
-const signSubmitTx = async (tx: Tx) : Promise<string> => {
-  const payload = bytesToHex(tx.toCbor());
-  const urlAPI = "/api/getSignature";
-
-  try {
-    let res = await axios({
-          url: urlAPI,
-          data: payload,
-          method: 'post',
-          timeout: 8000,
-          headers: {
-              'Content-Type': 'application/cbor'
-          }
-      })
-      if(res.status == 200){
-          return res.data;
-      } else {
-        console.error("signSumitTx API Error: ", res);
-        throw res.data;
-      }   
-  }
-  catch (err) {
-      console.error("signSubmitTx Failed: ", err);
-      throw err;
-  }
-}
 
 const Home: NextPage = () => {
 
   const optimize = false;
-  //const networkParamsUrl = "https://d1t0d7c2nekuk0.cloudfront.net/preprod.json";
-  const networkParamsUrl = "https://d1t0d7c2nekuk0.cloudfront.net/preview.json";
   const [walletInfo, setWalletInfo] = useState({ balance : ''});
   const [walletIsEnabled, setWalletIsEnabled] = useState(false);
   const [whichWalletSelected, setWhichWalletSelected] = useState(undefined);
@@ -169,9 +149,6 @@ const Home: NextPage = () => {
     // Re-enable wallet API since wallet account may have been changed
     await enableWallet();
 
-    const minAda : number = 2_500_000; // minimum lovelace needed to send an NFT
-    const maxTxFee: number = 500_000; // maximum estimated transaction fee
-    const minChangeAmt: number = 1_000_000; // minimum lovelace needed to be sent back as change
     const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));
 
     try {
@@ -179,10 +156,11 @@ const Home: NextPage = () => {
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
 
-      const networkParams = new NetworkParams(
-        await fetch(networkParamsUrl)
-            .then(response => response.json())
-      )
+      const networkParamsResp = await getNetworkParams("preview");
+      
+      console.log("networkParamsResp: ", networkParamsResp);
+      const networkParams = new NetworkParams(networkParamsResp);
+
       // Compile the user token validator script
       const userTokenValProgram = new UserTokenValidator();
       userTokenValProgram.parameters = {["VERSION"] : "1.0"};
@@ -302,6 +280,10 @@ const Home: NextPage = () => {
 
   }
 
+  const openSwap = async (params : any) => {
+
+  }
+
 
   return (
     <div className={styles.container}>
@@ -336,6 +318,7 @@ const Home: NextPage = () => {
             <p>Please wait until the transaction is confirmed on the blockchain and reload this page before doing another transaction</p>
           </div>}
           {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><MintUserToken onMintUserToken={mintUserToken}/></div>}
+          {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><OpenSwap onOpenSwap={openSwap}/></div>}
 
       </main>
 

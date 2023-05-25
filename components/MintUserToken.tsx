@@ -16,7 +16,7 @@ const mintUserToken = ({ onMintUserToken } : any) => {
             <div>
                 <b>Mint User Token</b> 
                 <br></br>
-                <input name='address' type='text' id='address' placeholder='Enter Destination Wallet Address' 
+                <input name='address' type='text' id='address' placeholder='Enter User Info' 
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 />

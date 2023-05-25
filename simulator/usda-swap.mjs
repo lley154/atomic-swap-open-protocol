@@ -9,7 +9,7 @@ import {
     assetSwap,
     beaconMPH,
     closeSwap,
-    initSwap,
+    openSwap,
     getMphTnQty,
     mintUserTokens,
     network,
@@ -112,7 +112,7 @@ const swapConfig = new SwapConfig("1.0",                // script version
 console.log("usda-swap: sellerToken.tn", sellerToken.tn);
                                   
 // Initialize with price of 20 usda tokens with 5 product tokens
-await initSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
+await openSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
 
 // Create usda tokens to for updated askedAssets
 const updateUsdaTokenAsset = new Assets();
