@@ -675,9 +675,9 @@ const mintUserTokens = async (user, minAda) => {
         // Add the user token policy script as a witness to the transaction
         tx.attachScript(userTokenPolicyCompiledProgram);
 
-        // Construct the user token name
+        // Construct the time validity interval
         const slot = networkParams.liveSlot;
-        const time = networkParamsPreview.slotToTime(slot);
+        const time = networkParams.slotToTime(slot);
         console.log("slot: ", slot);
         console.log("time: ", time);
 
@@ -865,6 +865,19 @@ const initSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
             Datum.inline(swapDatum)
         ));
 
+        // Construct the time validity interval
+        const slot = networkParams.liveSlot;
+        const time = networkParams.slotToTime(slot);
+        const now = new Date(Number(time));
+        const before = new Date(now.getTime());
+        before.setMinutes(now.getMinutes() - 5);
+        const after = new Date(now.getTime());
+        after.setMinutes(now.getMinutes() + 5);
+   
+        // Set a valid time interval
+        tx.validFrom(before);
+        tx.validTo(after);
+
         // Add app wallet pkh as a signer which is required to mint beacon
         tx.addSigner(owner.pubKeyHash);
 
@@ -997,6 +1010,19 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
             swapValue,
             Datum.inline(swapDatum)
         ));
+
+        // Construct the time validity interval
+        const slot = networkParams.liveSlot;
+        const time = networkParams.slotToTime(slot);
+        const now = new Date(Number(time));
+        const before = new Date(now.getTime());
+        before.setMinutes(now.getMinutes() - 5);
+        const after = new Date(now.getTime());
+        after.setMinutes(now.getMinutes() + 5);
+   
+        // Set a valid time interval
+        tx.validFrom(before);
+        tx.validTo(after);
 
         // Add seller wallet pkh as a signer which is required for an update
         tx.addSigner(seller.pubKeyHash);
@@ -1196,6 +1222,19 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
             owner.address,
             new Value(BigInt(swapConfig.serviceFee))
         ));
+
+        // Construct the time validity interval
+        const slot = networkParams.liveSlot;
+        const time = networkParams.slotToTime(slot);
+        const now = new Date(Number(time));
+        const before = new Date(now.getTime());
+        before.setMinutes(now.getMinutes() - 5);
+        const after = new Date(now.getTime());
+        after.setMinutes(now.getMinutes() + 5);
+   
+        // Set a valid time interval
+        tx.validFrom(before);
+        tx.validTo(after);
 
         // Add buyer wallet pkh as a signer which is required for an update
         tx.addSigner(buyer.pubKeyHash);
@@ -1451,6 +1490,19 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
             new Value(BigInt(swapConfig.serviceFee))
         ));
 
+        // Construct the time validity interval
+        const slot = networkParams.liveSlot;
+        const time = networkParams.slotToTime(slot);
+        const now = new Date(Number(time));
+        const before = new Date(now.getTime());
+        before.setMinutes(now.getMinutes() - 5);
+        const after = new Date(now.getTime());
+        after.setMinutes(now.getMinutes() + 5);
+   
+        // Set a valid time interval
+        tx.validFrom(before);
+        tx.validTo(after);
+
         // Add buyer wallet pkh as a signer which is required for an update
         tx.addSigner(buyer.pubKeyHash);
 
@@ -1587,6 +1639,19 @@ const approveEscrow = async (orderId, buyer, seller, escrowConfig) => {
             escrowDatumInfo.orderVal.add(rewardsValue)
         ));
 
+        // Construct the time validity interval
+        const slot = networkParams.liveSlot;
+        const time = networkParams.slotToTime(slot);
+        const now = new Date(Number(time));
+        const before = new Date(now.getTime());
+        before.setMinutes(now.getMinutes() - 5);
+        const after = new Date(now.getTime());
+        after.setMinutes(now.getMinutes() + 5);
+   
+        // Set a valid time interval
+        tx.validFrom(before);
+        tx.validTo(after);
+
         // Add buyer signer which is required to approve the escrow
         tx.addSigner(seller.pubKeyHash);
 
@@ -1720,6 +1785,19 @@ const closeSwap = async (seller, swapConfig, sellerTokenTN) => {
             seller.address,
             datumInfo.offeredAssetValue.add(sellerTokenValue)
         ));
+
+        // Construct the time validity interval
+        const slot = networkParams.liveSlot;
+        const time = networkParams.slotToTime(slot);
+        const now = new Date(Number(time));
+        const before = new Date(now.getTime());
+        before.setMinutes(now.getMinutes() - 5);
+        const after = new Date(now.getTime());
+        after.setMinutes(now.getMinutes() + 5);
+   
+        // Set a valid time interval
+        tx.validFrom(before);
+        tx.validTo(after);
 
         // Add buyer signer which is required to close the swap
         tx.addSigner(seller.pubKeyHash);

@@ -35,8 +35,8 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             refTokenVal : Value = Value::new(userTokenAssetclass, 1);
             timestampBA: ByteArray = red.tnBA.slice(11,24);
             timestamp: Time = Time::new(Int::parse(timestampBA.decode_utf8()));
-            print("timestamp: " + timestamp.show());
-            print("tx.time_range: " + tx.time_range.show());
+            //print("timestamp: " + timestamp.show());
+            //print("tx.time_range: " + tx.time_range.show());
 
             // Check that timestamp is within valid tx
             //tx.time_range.contains(timestamp).trace("UTP1: ") && -- not working
