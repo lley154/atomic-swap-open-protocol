@@ -2,43 +2,61 @@ minting userTokenPolicy
 
 enum Redeemer { 
     Mint {
-        pkhBA: ByteArray
-        timestampBA: String
+        tnBA: ByteArray
     }
     Burn 
+}
+
+struct TokenDatum {
+    userPkh: PubKeyHash
 }
 
 // Contract parameters 
 const VERSION: ByteArray = #
 const OWNER_PKH: ByteArray = #
 const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
-// Validator hash the locks the reference reference token
-const VHASH: ByteArray = # 
 const MIN_ADA: Int = 2_500_000
 const minAdaVal: Value = Value::lovelace(MIN_ADA)
 
 func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     
     tx : Tx = ctx.tx;
+    txOutputs : []TxOutput = tx.outputs;
 
     redeemer.switch {
         red: Mint => {
-            tn: String = red.pkhBA.show() + red.timestampBA;
-            tnBA: ByteArray = tn.encode_utf8();
+           
             userTokenAssetclass: AssetClass = AssetClass::new(
                 ctx.get_current_minting_policy_hash(), 
-                tnBA
+                red.tnBA
             );
             // Define user and reference token values
             userTokenVal : Value = Value::new(userTokenAssetclass, 1);
             refTokenVal : Value = Value::new(userTokenAssetclass, 1);
-            userPkh: PubKeyHash = PubKeyHash::new(red.pkhBA);
-            vHash: ValidatorHash = ValidatorHash::new(VHASH);
+            timestampBA: ByteArray = red.tnBA.slice(11,24);
+            timestamp: Time = Time::new(Int::parse(timestampBA.decode_utf8()));
+            print("timestamp: " + timestamp.show());
+            print("tx.time_range: " + tx.time_range.show());
 
-            tx.is_signed_by(ownerPkh).trace("UTP1: ") &&
-            tx.is_signed_by(userPkh).trace("UTP2: ") &&
-            (tx.minted == (userTokenVal + refTokenVal)).trace("UTP3: ") &&
-            (tx.value_locked_by(vHash) == minAdaVal + refTokenVal).trace("UTP4: ")
+            // Check that timestamp is within valid tx
+            //tx.time_range.contains(timestamp).trace("UTP1: ") && -- not working
+            (!tx.time_range.is_before(timestamp)).trace("UTP1: ") &&
+            (!tx.time_range.is_after(timestamp)).trace("UTP2: ") &&
+            tx.is_signed_by(ownerPkh).trace("UTP3: ") &&
+            (tx.minted == (userTokenVal + refTokenVal)).trace("UTP4: ") &&
+            (if (txOutputs.length >= 2) {
+                txOutputVHash: TxOutput = txOutputs.head;
+                txOutputVHash.datum.switch {
+                    refTokenDatum: Inline => { 
+                        refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
+                
+                        tx.is_signed_by(refTokenData.userPkh).trace("UTP5: ") 
+                    },
+                    else => false.trace("UTP6:") // no reference inline datum
+                }
+            } else {
+                false.trace("UTP7:") // must be at least 2 outputs
+            })
         },
         Burn => { 
             true 

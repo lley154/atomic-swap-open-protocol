@@ -4,7 +4,9 @@ import {
   Address,
   Assets, 
   bytesToHex,
+  bytesToText,
   ByteArray,
+  config,
   Datum,
   hexToBytes,
   MintingPolicyHash,
@@ -40,12 +42,23 @@ export {
     updateSwap
 }
 
+config.AUTO_SET_VALIDITY_RANGE = false;
+
 // Create an Instance of NetworkEmulator
 const network = new NetworkEmulator();
 
 // Network Parameters
-const networkParamsFile = await fs.readFile('./contracts/preprod.json', 'utf8');
-const networkParams = new NetworkParams(JSON.parse(networkParamsFile.toString()));
+//const networkParamsFile = await fs.readFile('./contracts/preprod.json', 'utf8');
+//const networkParams = new NetworkParams(JSON.parse(networkParamsFile.toString()));
+
+//const networkParamsUrl = "https://d1t0d7c2nekuk0.cloudfront.net/preprod.json";
+const networkParamsUrl = "https://d1t0d7c2nekuk0.cloudfront.net/preview.json";
+
+const networkParamsPreview = new NetworkParams(
+    await fetch(networkParamsUrl)
+        .then(response => response.json())
+  )
+const networkParams = network.initNetworkParams(networkParamsPreview);
 
 // Set the Helios compiler optimizer flag
 let optimize = false;
@@ -346,33 +359,25 @@ const getEscrowUTXO = async (orderId, buyerPkh, sellerPkh, escrowConfig) => {
  * @param {string} sellerTokenTN
  * @returns {UTxO}
  */
-const getRefTokenUTXO = async (userTokenMPH, sellerTokenTN, minAda) => {
+const getRefTokenUTXO = async (user, userTokenMPH, userTokenTN, minAda) => {
 
-    const sellerToken = [[textToBytes(sellerTokenTN), BigInt(1)]];
-    const sellerTokenAsset = new Assets([[MintingPolicyHash.fromHex(userTokenMPH), sellerToken]]);
-    const sellerTokenValue = new Value(BigInt(minAda), sellerTokenAsset);
-    
-    //const sellerTokenAsset = new Assets();
-    //sellerTokenAsset.addComponent(
-    //    sellerTokenMPH,
-    //    sellerTokenTN,
-    //    BigInt(1)
-    //);
+    const userToken = [[textToBytes(userTokenTN), BigInt(1)]];
+    const userTokenAsset = new Assets([[MintingPolicyHash.fromHex(userTokenMPH), userToken]]);
+    const userTokenValue = new Value(BigInt(minAda), userTokenAsset);
     
     // Compile the user token validator script
     userTokenValProgram.parameters = {["VERSION"] : "1.0"};
+    userTokenValProgram.parameters = {["USER_PKH"] : user.pubKeyHash.hex};
     userTokenValProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
+    
     const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
     const userTokenValHash = userTokenValCompiledProgram.validatorHash;
 
-    console.log("getRefTokenUTXO: sellerTokenValue", sellerTokenValue.toSchemaJson());
-    
     const userTokenUtxos = await network.getUtxos(Address.fromHashes(userTokenValHash));
     for (const utxo of userTokenUtxos) {
-        console.log("getRefTokenUTXO: utxo.origOutput.value.toSchemaJson()", utxo.origOutput.value.toSchemaJson());
-
+ 
         // Only one reference UTXO with the matching seller MPH should exist
-        if (utxo.origOutput.value.eq(sellerTokenValue)) { 
+        if (utxo.origOutput.value.eq(userTokenValue)) { 
             console.log("");
             console.log("getRefTokenUTXO: reference user token UTXO found");
             const refUtxo = new TxRefInput(
@@ -646,6 +651,7 @@ const mintUserTokens = async (user, minAda) => {
 
         // Compile the user token validator script
         userTokenValProgram.parameters = {["VERSION"] : "1.0"};
+        userTokenValProgram.parameters = {["USER_PKH"] : user.pubKeyHash.hex};
         userTokenValProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
         const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
         const userTokenValHash = userTokenValCompiledProgram.validatorHash;
@@ -653,7 +659,6 @@ const mintUserTokens = async (user, minAda) => {
         // Compile the user token policy script
         userTokenPolicyProgram.parameters = {["VERSION"] : "1.0"};
         userTokenPolicyProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
-        userTokenPolicyProgram.parameters = {["VHASH"] : userTokenValHash.hex};
         userTokenPolicyProgram.parameters = {["MIN_ADA"] : minAda};
         const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
         const userTokenMPH = userTokenPolicyCompiledProgram.mintingPolicyHash;
@@ -671,21 +676,27 @@ const mintUserTokens = async (user, minAda) => {
         tx.attachScript(userTokenPolicyCompiledProgram);
 
         // Construct the user token name
-        const today = "|" + Date.now().toString();
-        const userTokenTN = user.pubKeyHash.hex + today;
+        const slot = networkParams.liveSlot;
+        const time = networkParamsPreview.slotToTime(slot);
+        console.log("slot: ", slot);
+        console.log("time: ", time);
+
+        const now = new Date(Number(time));
+        const before = new Date(now.getTime());
+        before.setMinutes(now.getMinutes() - 5);
+        const after = new Date(now.getTime());
+        after.setMinutes(now.getMinutes() + 5);
+        const userTokenTN = textToBytes("User Token|" + now.getTime().toString());
 
         // Create the user token and reference token
-        const userTokens = [[textToBytes(userTokenTN), BigInt(2)]];
+        const userTokens = [[userTokenTN, BigInt(2)]];
 
         // Create the user token poicy redeemer 
         const userTokenPolicyRedeemer = (new userTokenPolicyProgram
             .types.Redeemer
-            .Mint(user.pubKeyHash.hex, today))
+            .Mint(userTokenTN))
             ._toUplcData();
         
-        //const pkh = new ByteArrayData(user.pubKeyHash.hex);
-        //console.log("pkh test: ", pkh.toSchemaJson());
-
         // Add the mint to the tx
         tx.mintTokens(
             userTokenMPH,
@@ -694,15 +705,21 @@ const mintUserTokens = async (user, minAda) => {
         )
 
         // Create the user token
-        const userToken = [[textToBytes(userTokenTN), BigInt(1)]];
+        const userToken = [[userTokenTN, BigInt(1)]];
         const userTokenAsset = new Assets([[userTokenMPH, userToken]]);
         const userTokenValue = new Value(minAda, userTokenAsset);
         console.log("userTokenValue: ", userTokenValue.toSchemaJson());
+
+        // Construct the reference token datum
+        const userTokenDatum = new (userTokenValProgram.types.Datum)(
+            user.pubKeyHash
+          )
         
         // Create the output for the reference user token
         tx.addOutput(new TxOutput(
             Address.fromHashes(userTokenValHash),
-            userTokenValue
+            userTokenValue,
+            Datum.inline(userTokenDatum)
         ));
         
         // Create the output for the user token
@@ -710,6 +727,10 @@ const mintUserTokens = async (user, minAda) => {
             user.address,
             userTokenValue
         ));
+
+        // Set a valid time interval
+        tx.validFrom(before);
+        tx.validTo(after);
 
         // Add app wallet & user pkh as a signer which is required to mint user token
         tx.addSigner(user.pubKeyHash);
@@ -745,7 +766,7 @@ const mintUserTokens = async (user, minAda) => {
         await showScriptUTXOs(Address.fromHashes(userTokenValHash), "User Token");
         return {
             mph: userTokenMPH.hex,
-            tn: userTokenTN,
+            tn: bytesToText(userTokenTN),
             vHash: userTokenValHash.hex
         }
 
@@ -931,7 +952,9 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         tx.attachScript(swapCompiledProgram);
 
         // Create the swap redeemer
-        const swapRedeemer = (new swapProgram.types.Redeemer.Update())._toUplcData();
+        const swapRedeemer = (new swapProgram.types.Redeemer
+                                .Update(textToBytes(sellerTokenTN))
+                             )._toUplcData();
         
         // Get the UTXO that has the swap datum
         const swapUtxo = await getSwapUTXO(swapConfig);
@@ -941,7 +964,8 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         const datumInfo = await getSwapDatumInfo(swapUtxo);
 
         // Now calculate the new updated offerAssetValue
-        const updatedOfferedAssetValue = datumInfo.offeredAssetValue.add(offeredAssetValue);
+        const updatedOfferedAssetValue = datumInfo.offeredAssetValue
+                                                  .add(offeredAssetValue);
         
         // Confirm that the updated offeredAssetValue is positive
         updatedOfferedAssetValue.assertAllPositive();
@@ -1063,9 +1087,12 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
         // Get the UTXO that has the swap datum
         const swapUtxo = await getSwapUTXO(swapConfig);
         tx.addInput(swapUtxo, swapRedeemer); 
-        
-        const refTokenUtxo = await getRefTokenUTXO(swapConfig.userTokenMPH, sellerTokenTN, swapConfig.minAda);
-        tx.addRefInput(refTokenUtxo);
+
+        // Add the buyer & sell reference user tokens
+        const buyerRefTokenUtxo = await getRefTokenUTXO(buyer, swapConfig.userTokenMPH, buyerTokenTN, swapConfig.minAda);
+        tx.addRefInput(buyerRefTokenUtxo);
+        const sellerRefTokenUtxo = await getRefTokenUTXO(seller, swapConfig.userTokenMPH, sellerTokenTN, swapConfig.minAda);
+        tx.addRefInput(sellerRefTokenUtxo);
         
         // Calc the amount of products remaining
         const orderDetails = await calcOrderDetails(swapUtxo, swapAskedAssetValue);
@@ -1106,7 +1133,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, sellerT
         ));
 
         // Create the output to send the askedAsset to the seller address
-        // Check if asked Asset is in lovelace
+        // and check if asked Asset is in lovelace
         if (swapAskedAssetValue.lovelace == 0) {
             if (orderDetails.noChange) {
                 tx.addOutput(new TxOutput(
@@ -1277,8 +1304,11 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         const swapUtxo = await getSwapUTXO(swapConfig);
         tx.addInput(swapUtxo, swapRedeemer);   
 
-        const refTokenUtxo = await getRefTokenUTXO(swapConfig.userTokenMPH, sellerTokenTN, swapConfig.minAda);
-        tx.addRefInput(refTokenUtxo);
+        // Add the buyer & sell reference user tokens
+        const buyerRefTokenUtxo = await getRefTokenUTXO(buyer, swapConfig.userTokenMPH, buyerTokenTN, swapConfig.minAda);
+        tx.addRefInput(buyerRefTokenUtxo);
+        const sellerRefTokenUtxo = await getRefTokenUTXO(seller, swapConfig.userTokenMPH, sellerTokenTN, swapConfig.minAda);
+        tx.addRefInput(sellerRefTokenUtxo);
         
         // Calc the amount of products to buy
         const orderDetails = await calcOrderDetails(swapUtxo, swapAskedAssetValue);
@@ -1346,13 +1376,13 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
 
         // Construct the escrow datum
         const escrowDatum = new (escrowProgram.types.Datum)(
-            buyerTokenTN.split("|")[0],
+            buyer.pubKeyHash.hex,
             buyerTokenTN.split("|")[1], 
             depositVal,
             new ByteArray(orderId),
             orderVal,
             orderDetails.buyAssetVal,
-            sellerTokenTN.split("|")[0],
+            seller.pubKeyHash.hex,
             sellerTokenTN.split("|")[1]
             )
 

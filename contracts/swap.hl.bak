@@ -36,6 +36,9 @@ const ESCROW_HASH: ByteArray = #
 const USER_TOKEN_MPH: ByteArray = #
 const userTokenMph: MintingPolicyHash = MintingPolicyHash::new(USER_TOKEN_MPH)
 const USER_TOKEN_VHASH: ByteArray = #
+//const userTokenVHash: ValidatorHash = ValidatorHash::new(USER_TOKEN_VHASH)
+//const userTokenCred: Credential = Credential::new_validator(userTokenVHash)
+//const userTokenAddr: Address = Address::new(userTokenCred, Option[StakingCredential]::None)
 const SERVICE_FEE: Int = 0
 const OWNER_PKH: ByteArray = #
 const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
@@ -50,27 +53,6 @@ func checkAdaVal(value: Value) -> Value {
         minAdaVal + value
     } else {
         value
-    }
-}
-
-func getUserPkh(userTokenVal: Value, txRefInputs: []TxInput) -> Option[PubKeyHash] {
-
-    if (txRefInputs.length >= 1) {
-
-        if (txRefInputs.head.output.value == minAdaVal + userTokenVal) {
-            txRefInputs.head.output.datum.switch {
-                refTokenDatum: Inline => {
-                    refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
-                    Option[PubKeyHash]::Some{refTokenData.userPkh}
-                },
-                else => Option[PubKeyHash]::None // no reference inline datum
-            }
-        } else {
-            getUserPkh(userTokenVal, txRefInputs.tail)
-        } 
-    }else {
-            // No reference input matching user token value
-            Option[PubKeyHash]::None
     }
 }
 
@@ -123,7 +105,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         },
         red: Swap => { 
 
-            txRefInputs : []TxInput = tx.ref_inputs;
+            txRefInput : []TxInput = tx.ref_inputs;
             txOutputsBuyer : []TxOutput = tx.outputs_sent_to(red.buyerPkh);
             txOutputsOwner : []TxOutput = tx.outputs_sent_to(ownerPkh);
             if (txOutputsContract.length == 1 && txOutputsBuyer.length >= 1) {
@@ -146,46 +128,72 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         offeredAssetDiffVal: Value = datumIn.offeredAssetVal - datumOutData.offeredAssetVal;
                         offeredAssetDiffQty: Int = offeredAssetDiffVal.get(offeredAssetclass);
                         feeVal: Value = Value::lovelace(SERVICE_FEE);
-                        
                         // Check that the askedAsset datum value does not change
                         (datumIn.askedAssetVal == datumOutData.askedAssetVal).trace("SV2.1: ") &&
                         // Check that the askedAsset in the datum is what is asked as part of this swap
                         (datumIn.askedAssetVal.get(askedAssetclass) > 0).trace("SV2.2: ") &&
                         // Check that the offeredAsset in the datum is what is offered as part of this swap
                         (datumIn.offeredAssetVal.get(offeredAssetclass) > 0).trace("SV2.3: ") &&
-                        // Check that the buyer and seller tokens have a corresponding
-                        // reference tokens and with a correct pkh matches
-                        getUserPkh(buyerTokenVal, txRefInputs).switch {
-                            buyerPkhLookup : Some => {
-                                tx.is_signed_by(buyerPkhLookup.some).trace("SV2.4: ") 
-                            }, 
-                            else => { false.trace("SV2.5: ") } // could not find user pkh
-                        } &&
-                        getUserPkh(sellerTokenVal, txRefInputs).switch {
-                            sellerPkhLookup : Some => {
-                                (sellerPkh == sellerPkhLookup.some).trace("SV2.6: ") 
-                            }, 
-                            else => { false.trace("SV2.7: ") } // could not find user pkh
-                        } &&
+                        
+                        // Check that reference tokens exist and signed correctly
+                        (if (txRefInput.length == 2) {
+                            txRefInput.get(0).output.datum.switch {
+                                refTokenDatum: Inline => {
+                                    refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
+                                    print("txRefInput.get(0).output.value: " + txRefInput.get(0).output.value.show());
+                                    print("sellerTokenVal: " + sellerTokenVal.show());
+                            
+                                    tx.is_signed_by(refTokenData.userPkh) &&
+                                    //(txRefInput.get(0).output.address == userTokenAddr).trace("SV2.5: ") &&
+                                    ((txRefInput.get(0).output.value == (minAdaVal + sellerTokenVal)).trace("SV2.5: ") || 
+                                     (txRefInput.get(0).output.value == (minAdaVal + buyerTokenVal)).trace("SV2.6: ")) 
+                                    },
+                                    else => false.trace("SV7.") // no reference inline datum
+                                } 
+                            &&
+                            txRefInput.get(1).output.datum.switch {
+                                refTokenDatum: Inline => {
+                                        refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
+                                        print("txRefInput.get(1).output.value: " + txRefInput.get(1).output.value.show());
+                                        print("sellerTokenVal: " + sellerTokenVal.show());
+
+                                        (refTokenData.userPkh == sellerPkh).trace("SV2.8: ") &&
+                                        //(txRefInput.get(1).output.address == userTokenAddr).trace("SV2.8: ") &&
+                                        ((txRefInput.get(1).output.value == sellerTokenVal).trace("SV2.9: ") || 
+                                        (txRefInput.get(1).output.value == buyerTokenVal).trace("SV2.10: ")) 
+                                    },
+                                    else => false.trace("SV2.10") // no reference inline datum
+                                }
+                                
+                            } else { 
+                                false.trace("SV2.11")  // not enough reference inputs
+                        }) &&
                         (if (ESCROW_ENABLED) {
                             swapVal: Value = checkAdaVal(datumOutData.offeredAssetVal) + beaconVal + sellerTokenVal;
                             buyerVal: Value = offeredAssetDiffVal;
                             sellerVal: Value =  datumIn.askedAssetVal * offeredAssetDiffQty;
                             escrowVal: Value = depositAdaVal + checkAdaVal(buyerVal + sellerVal);
+                            //buyerPkh: PubKeyHash = tx.signatories.head;
                             eHash = ValidatorHash::new(ESCROW_HASH);
                             
                             (tx.value_locked_by(sHash) == (swapVal)).trace("SV3.1: ") &&
                             (tx.value_locked_by(eHash) == (escrowVal)).trace("SV3.2: ") &&
                             (feeVal == txOutputsOwner.head.value).trace("SV3.3: ") 
+                            //(sellerTN == SELLER_PKH.show()).trace("SV3.4: ") &&
+                            //(buyerTN == buyerPkh.show()).trace("SV3.5: ") &&
+                            //(checkAdaVal(buyerTokenVal) == txOutputsBuyer.head.value).trace("SV3.6: ")
                         } else {
                             swapVal: Value = checkAdaVal(datumOutData.offeredAssetVal) + beaconVal + sellerTokenVal;
                             buyerVal: Value = checkAdaVal(offeredAssetDiffVal) + buyerTokenVal;
                             sellerVal: Value =  checkAdaVal(datumIn.askedAssetVal * offeredAssetDiffQty);
-                           
+                            //buyerPkh: PubKeyHash = tx.signatories.head;
+                            
                             (tx.value_locked_by(sHash) == (swapVal)).trace("SV4.1: ") &&
                             (buyerVal == txOutputsBuyer.head.value).trace("SV4.2: ") &&
                             (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV4.3: ") &&
                             (feeVal == txOutputsOwner.head.value).trace("SV4.3: ") 
+                            //(sellerTN == SELLER_PKH.show()).trace("SV4.4: ") &&
+                            //(buyerTN == buyerPkh.show()).trace("SV4.5: ")
                         }) 
                     },
                     else => false.trace("SV4.6: ") // No inline datum found
@@ -197,7 +205,10 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         red: Update => {
 
             if (txOutputsContract.length == 1) {
-            
+                //userToken: Map[ByteArray]Int = txOutputsContract.head.value.get_policy(userTokenMph);
+                //userTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMph: userToken};
+                //userTokenVal = Value::from_map(userTokenMap);
+
                 // Create seller token that will be sent back to the seller
                 sellerTokenAssetclass: AssetClass = AssetClass::new(
                     userTokenMph, 

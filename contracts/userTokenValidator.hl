@@ -4,10 +4,16 @@ enum Redeemer {
     Spend
 }
 
+struct Datum {
+    userPkh: PubKeyHash
+}
+
 // Contract parameters 
 const VERSION: ByteArray = #
+const USER_PKH: ByteArray = #
 const OWNER_PKH: ByteArray = #
 const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+
 
 func main(_, _, ctx: ScriptContext) -> Bool {
     

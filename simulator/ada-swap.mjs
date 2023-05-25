@@ -117,4 +117,3 @@ await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, sellerToken.tn, 
 // Close the swap position
 await closeSwap(seller, swapConfig, sellerToken.tn);  
 showWalletUTXOs("Buyer", buyer);
-
