@@ -19,9 +19,6 @@ enum Redeemer {
 
 // Contract parameters 
 const VERSION: ByteArray = #
-const BUYER_PKH: ByteArray = #
-const buyerPkh: PubKeyHash = PubKeyHash::new(BUYER_PKH)
-
 const SELLER_PKH: ByteArray = #
 const sellerPkh: PubKeyHash = PubKeyHash::new(SELLER_PKH)
 
@@ -43,8 +40,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             tx.is_signed_by(ownerPkh).trace("EV3: ") &&
             (tx.value_sent_to(datum.sellerPkh).contains(sellerVal)).trace("EV4: ") &&
             (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV5: ") &&
-            (datum.sellerPkh == sellerPkh).trace("EV6: ") &&
-            (datum.buyerPkh == buyerPkh).trace("EV7: ")
+            (datum.sellerPkh == sellerPkh).trace("EV6: ") 
 
         },
         Refund => {
@@ -56,8 +52,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             tx.is_signed_by(ownerPkh).trace("EV10: ") &&
             (tx.value_sent_to(datum.sellerPkh).contains(sellerVal)).trace("EV11: ") &&
             (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV12: ") &&
-            (datum.sellerPkh == sellerPkh).trace("EV13: ") &&
-            (datum.buyerPkh == buyerPkh).trace("E14: ")
+            (datum.sellerPkh == sellerPkh).trace("EV13: ") 
         },
         Process => {
             sellerVal: Value = datum.orderVal;
@@ -69,8 +64,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             (tx.value_sent_to(datum.sellerPkh).contains(sellerVal)).trace("EV16: ") &&
             (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV17: ") &&
             (tx.value_sent_to(ownerPkh).contains(ownerVal)).trace("EV18: ") &&
-            (datum.sellerPkh == sellerPkh).trace("EV19: ") &&
-            (datum.buyerPkh == buyerPkh).trace("E20: ")
+            (datum.sellerPkh == sellerPkh).trace("EV19: ") 
         }
     }
 }

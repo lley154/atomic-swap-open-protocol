@@ -73,13 +73,11 @@ offeredAsset.addComponent(
 const offeredAssetValue = new Value(BigInt(0), offeredAsset);
 
 const escrowConfig = new EscrowConfig("1.0",
-                                      buyer.pubKeyHash.hex,
                                       seller.pubKeyHash.hex,
                                       owner.pubKeyHash.hex);
 
 // Create the escrow config parameters
 escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
-escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPkh};
 escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
 escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
 const escrowCompiledProgram = escrowProgram.compile(optimize);

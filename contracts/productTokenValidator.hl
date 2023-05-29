@@ -1,0 +1,22 @@
+spending userTokenValidator
+
+enum Redeemer {
+    Spend
+}
+
+struct Datum {
+    userPkh: PubKeyHash
+}
+
+// Contract parameters 
+const VERSION: ByteArray = #
+const SELLER_PKH: ByteArray = #
+const OWNER_PKH: ByteArray = #
+const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+const PRODUCT_ID: ByteArray = #
+
+
+func main(_, _, _) -> Bool {
+    // Always fail, there is no spending of assets allowed
+    false.trace("PTV1: ") 
+}

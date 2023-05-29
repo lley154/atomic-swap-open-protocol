@@ -15,8 +15,10 @@ const mintUserToken = ({ onMintUserToken } : any) => {
         <form onSubmit={onSubmit}>
             <div>
                 <b>Mint User Token</b> 
+                <hr></hr>
+                Enter User Info
                 <br></br>
-                <input name='address' type='text' id='address' placeholder='Enter User Info' 
+                <input name='address' type='text' id='address' placeholder='User Info' 
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 />

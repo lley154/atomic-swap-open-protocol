@@ -118,9 +118,8 @@ const escrowProgram = Program.new(escrowScript);
 // an escrow script address for a given buyer pkh, seller pkh 
 // and the owner pkh.
 class EscrowConfig {
-    constructor(version, buyerPkh, sellerPkh, ownerPkh) {
+    constructor(version, sellerPkh, ownerPkh) {
         this.version = version;
-        this.buyerPkh = buyerPkh;
         this.sellerPkh = sellerPkh;
         this.ownerPkh = ownerPkh;
     }
@@ -243,7 +242,6 @@ const showSwapScriptUTXOs = async (swapConfig) => {
 const showEscrowScriptUTXOs = async (escrowConfig) => {
 
     escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
-    escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPkh};
     escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
     escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
     const escrowCompiledProgram = escrowProgram.compile(optimize);
@@ -331,7 +329,6 @@ const getEscrowUTXO = async (orderId, buyerPkh, sellerPkh, escrowConfig) => {
 
     console.log("getEscrowUTXO: ", escrowConfig);
     escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
-    escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPkh};
     escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
     escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
     
@@ -784,7 +781,7 @@ const openSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
 
     try {
         console.log("");
-        console.log("************ INIT SWAP ************");
+        console.log("************ OPEN SWAP ************");
         console.log("************ PRE-TEST *************");
         await showWalletUTXOs("Buyer", buyer);
         await showWalletUTXOs("Seller", seller);
@@ -1296,7 +1293,6 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
 
         // Compile the escrow script script
         escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
-        escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPkh};
         escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
         escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
         const escrowCompiledProgram = escrowProgram.compile(optimize);
@@ -1557,7 +1553,6 @@ const approveEscrow = async (orderId, buyer, seller, escrowConfig) => {
         await showEscrowScriptUTXOs(escrowConfig);
 
         escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
-        escrowProgram.parameters = {["BUYER_PKH"] : escrowConfig.buyerPkh};
         escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
         escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
         const escrowCompiledProgram = escrowProgram.compile(optimize);

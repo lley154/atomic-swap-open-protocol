@@ -21,7 +21,6 @@ input[type="number"] {
   width: 100px;
 }
 
-
 * {
   box-sizing: border-box;
 }
@@ -59,3 +58,4 @@ input[type="number"] {
   align-items: center;
   height: 350px;
 }
+
