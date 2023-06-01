@@ -111,20 +111,8 @@ const Home: NextPage = (props : any) => {
   const [isLoading, setIsLoading] = useState(false);
   const [tx, setTx] = useState({ txId : '' });
   const [swapList, setSwapList] = useState(JSON.parse(props.swaps));
-  const [swapInfo, setSwapInfo] = useState(new SwapInfo('','','',0,'','',0));
-  
-  /*
-    {
-        address : '',
-        askedAssetMPH: '',
-        askedAssetTN: '',
-        askedAssetPrice: 0, 
-        offeredAssetMPH: '',
-        offeredAssetTN: '',
-        offeredAssetQty: 0
-    }
-  );
-  */
+  //const [swapInfo, setSwapInfo] = useState(new SwapInfo('','','',0,'','',0));
+  const [swapInfo, setSwapInfo] = useState<undefined | any>(undefined);
 
   useEffect(() => {
     const checkWallet = async () => {
@@ -200,39 +188,21 @@ const Home: NextPage = (props : any) => {
 
   const getBalance = async () => {
     let walletBalance = [];
-    let i = 0;
     try {
         const balanceAmountValue  = await walletHelper.calcBalance();
         const adaAmount = BigInt(balanceAmountValue.lovelace);
-        //const walletBalance : BigInt = BigInt(balanceAmount);
-        walletBalance.push({ mph: "", tn: "", qty: adaAmount.toLocaleString(), key: "0-" + i});
+        walletBalance.push({ mph: "", tn: "lovelace", qty: adaAmount.toLocaleString()});
         console.log("getBalance: ", balanceAmountValue.assets.dump());
         const values = balanceAmountValue.assets.dump();
         Object.entries(values).forEach(([keyMph, valueMph]) => {
-          Object.entries(valueMph as {}).forEach(([tokenName, tokenQty]) => {
-            console.log("mph: ", keyMph);
-            console.log("token name: ", bytesToText(hexToBytes(tokenName)));
-            console.log("token qty: ", tokenQty);
-            
-            i += 1;
-            const keyString =  keyMph + "-" + i;
-            console.log("keyString: ", keyString);
-            walletBalance.push({ mph: keyMph, tn: bytesToText(hexToBytes(tokenName)), qty: BigInt(tokenQty as bigint).toLocaleString(), key: keyString});
+          Object.entries(valueMph as {}).forEach(([tokenName, tokenQty]) => {            
+            walletBalance.push({ mph: keyMph,
+                                 tn: bytesToText(hexToBytes(tokenName)),
+                                 qty: BigInt(tokenQty as bigint).toLocaleString()});
           })
-
         });
-        //return walletBalance.toLocaleString();
-        console.log("walletBalance[]{}: ", walletBalance);
-        walletBalance.forEach(function(item) {
-          console.log("foreach: ", item.mph);
-          return item.mph;
-        })
-        //walletBalance.forEach(item => {
-        //    return item.mph;
-        //  })
-    
-        //return walletBalance[0][0].toLocaleString();
         return walletBalance;
+
     } catch (err) {
         console.log('getBalance error: ', err);
     }
@@ -977,7 +947,7 @@ const updateSwap = async (params : any) => {
             <p>Please wait until the transaction is confirmed on the blockchain and reload this page before doing another transaction</p>
           </div>}
           {walletIsEnabled && !tx.txId && <div className={styles.border}><SwapList swapList={swapList} onSwapInfo={updateSwapDetails}/></div>}
-          {walletIsEnabled && !tx.txId && <div className={styles.border}><SwapDetails swapInfo={swapInfo}/></div>}
+          {walletIsEnabled && !tx.txId && swapInfo && <div className={styles.border}><SwapDetails swapInfo={swapInfo}/></div>}
           {walletIsEnabled && !tx.txId && <div className={styles.border}><MintUserToken onMintUserToken={mintUserToken}/></div>}
           {walletIsEnabled && !tx.txId && <div className={styles.border}><MintProductToken onMintProductToken={mintProductToken}/></div>}
           {walletIsEnabled && !tx.txId && <div className={styles.border}><OpenSwap onOpenSwap={openSwap}/></div>}

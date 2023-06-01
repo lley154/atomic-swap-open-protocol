@@ -3,16 +3,9 @@ import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import SwapInfo from '../../utils/swaps';
 
 import {
-    Address,
-    Assets,
     bytesToText,
-    Datum,
     hexToBytes,
     ListData,
-    textToBytes,
-    TxId,
-    TxOutput,
-    UTxO,
     Value } from "@hyperionbt/helios";
 
 export default async function handler(
@@ -44,6 +37,7 @@ export default async function handler(
 
         if (askedAssetValue.lovelace > 0) {
             askedAssetPrice = Number(askedAssetValue.lovelace);
+            askedAssetTN = "lovelace";
         } else {
 
             const askedAsset = askedAssetValue.assets.dump();
@@ -69,6 +63,7 @@ export default async function handler(
 
         if (offeredAssetValue.lovelace > 0) {
             offeredAssetQty = Number(offeredAssetValue.lovelace);
+            offeredAssetTN = "lovelace";
         } else {
 
             const offeredAsset = offeredAssetValue.assets.dump();
@@ -97,23 +92,6 @@ export default async function handler(
             offeredAssetTN,
             offeredAssetQty);
 
-        /*
-        console.log("getSwapInfo: assets: ",  assets);
-                                                      
-        let swapInfo = [];
-        for (const asset of assets) {
-            const address = await API.assetsAddresses(asset.asset);
-            const utxo = await API.addressesUtxosAsset(address[0].address, asset.asset);
-            console.log("getSwaps: utxo: ", utxo);
-            const swapData = {
-                addr: utxo[0].address,
-                datum: utxo[0].inline_datum
-            }
-            swapInfo.push(swapData);
-        }
-
-        return swapInfo;
-        */
        return swapInfo;
     }
 

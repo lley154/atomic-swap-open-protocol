@@ -1,17 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 
-import {
-    Address,
-    Assets,
-    Datum,
-    ListData,
-    textToBytes,
-    TxId,
-    TxOutput,
-    UTxO,
-    Value } from "@hyperionbt/helios";
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse ) {
@@ -26,23 +15,6 @@ export default async function handler(
     
         const assets = await API.assetsPolicyByIdAll(mph);
 
-        /*
-        console.log("getSwapInfo: assets: ",  assets);
-                                                      
-        let swapInfo = [];
-        for (const asset of assets) {
-            const address = await API.assetsAddresses(asset.asset);
-            const utxo = await API.addressesUtxosAsset(address[0].address, asset.asset);
-            console.log("getSwaps: utxo: ", utxo);
-            const swapData = {
-                addr: utxo[0].address,
-                datum: utxo[0].inline_datum
-            }
-            swapInfo.push(swapData);
-        }
-
-        return swapInfo;
-        */
        return assets;
     }
 

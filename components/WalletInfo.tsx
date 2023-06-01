@@ -34,7 +34,7 @@ const WalletInfo = ({ walletInfo } : any) => {
                         mph={item.mph}
                         tn={item.tn}
                         qty={item.qty}
-                        key={item.key}
+                        key={item.mph + item.tn}
                     />
                 ))}
                 </tbody>

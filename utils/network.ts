@@ -181,80 +181,6 @@ const getSwapUtxo = async (swapValidatorAddr : Address, beaconMPH : MintingPolic
         if(res.status == 200){
             console.log("res.data:" , res.data);
 
-            /*
-
-            let swaps = [];
-            for (const swap of res.data) {
-                const datum = ListData.fromCbor(hexToBytes(swap.datum));
-                console.log("datum: ", datum.toSchemaJson());
-                console.log("datum.fields[0]: ", datum.list[0]);
-                const askedAssetValue =  Value.fromUplcData(datum.list[0]);
-                console.log("askedAssetValue: ", askedAssetValue);
-                const offeredAssetValue = Value.fromUplcData(datum.list[1]);
-                
-                let askedAssetMPH = "";
-                let askedAssetTN = "";
-                let askedAssetPrice = 0;
-
-                if (askedAssetValue.lovelace > 0) {
-                    askedAssetPrice = Number(askedAssetValue.lovelace);
-                } else {
-
-                    const askedAsset = askedAssetValue.assets.dump();
-                    Object.entries(askedAsset).forEach(([keyMph, valueMph], index, arr) => {
-                        Object.entries(valueMph as {}).forEach(([tokenName, tokenQty], index, arr) => {
-                            console.log("asked mph: ", keyMph);
-                            console.log("asked token name: ", bytesToText(hexToBytes(tokenName)));
-                            console.log("asked token qty: ", tokenQty);
-
-                            askedAssetMPH = keyMph;
-                            askedAssetTN = tokenName;
-                            askedAssetPrice = tokenQty as number;
-
-                            arr.length = index + 1; // there will only be 1 token, so break
-                        })
-                        arr.length = index + 1; // there will only be 1 mph, so break
-                    })
-                }
-
-                let offeredAssetMPH = "";
-                let offeredAssetTN = "";
-                let offeredAssetQty = 0;
-
-                if (offeredAssetValue.lovelace > 0) {
-                    offeredAssetQty = Number(offeredAssetValue.lovelace);
-                } else {
-
-                    const offeredAsset = offeredAssetValue.assets.dump();
-                    Object.entries(offeredAsset).forEach(([keyMph, valueMph], index, arr) => {
-                        Object.entries(valueMph as {}).forEach(([tokenName, tokenQty], index, arr) => {
-                            console.log("offered mph: ", keyMph);
-                            console.log("offered token name: ", bytesToText(hexToBytes(tokenName)));
-                            console.log("offered token qty: ", tokenQty);
-
-                            offeredAssetMPH = keyMph;
-                            offeredAssetTN = tokenName;
-                            offeredAssetQty = tokenQty as number;
-
-                            arr.length = index + 1; // there will only be 1 token, so break
-                        })
-                        arr.length = index + 1; // there will only be 1 mph, so break
-                    })
-                }
-
-                const swapInfo = new SwapInfo(
-                    swap.addr,
-                    askedAssetMPH,
-                    askedAssetTN,
-                    askedAssetPrice,
-                    offeredAssetMPH,
-                    offeredAssetTN,
-                    offeredAssetQty);
-                swaps.push(swapInfo);
-            }
-            //console.log("getSwaps: swaps: ", swaps);
-            return swaps;
-            */
            return res.data;
 
         } else {
@@ -290,80 +216,6 @@ const getSwapUtxo = async (swapValidatorAddr : Address, beaconMPH : MintingPolic
         if(res.status == 200){
             console.log("res.data:" , res.data);
 
-            /*
-
-            let swaps = [];
-            for (const swap of res.data) {
-                const datum = ListData.fromCbor(hexToBytes(swap.datum));
-                console.log("datum: ", datum.toSchemaJson());
-                console.log("datum.fields[0]: ", datum.list[0]);
-                const askedAssetValue =  Value.fromUplcData(datum.list[0]);
-                console.log("askedAssetValue: ", askedAssetValue);
-                const offeredAssetValue = Value.fromUplcData(datum.list[1]);
-                
-                let askedAssetMPH = "";
-                let askedAssetTN = "";
-                let askedAssetPrice = 0;
-
-                if (askedAssetValue.lovelace > 0) {
-                    askedAssetPrice = Number(askedAssetValue.lovelace);
-                } else {
-
-                    const askedAsset = askedAssetValue.assets.dump();
-                    Object.entries(askedAsset).forEach(([keyMph, valueMph], index, arr) => {
-                        Object.entries(valueMph as {}).forEach(([tokenName, tokenQty], index, arr) => {
-                            console.log("asked mph: ", keyMph);
-                            console.log("asked token name: ", bytesToText(hexToBytes(tokenName)));
-                            console.log("asked token qty: ", tokenQty);
-
-                            askedAssetMPH = keyMph;
-                            askedAssetTN = tokenName;
-                            askedAssetPrice = tokenQty as number;
-
-                            arr.length = index + 1; // there will only be 1 token, so break
-                        })
-                        arr.length = index + 1; // there will only be 1 mph, so break
-                    })
-                }
-
-                let offeredAssetMPH = "";
-                let offeredAssetTN = "";
-                let offeredAssetQty = 0;
-
-                if (offeredAssetValue.lovelace > 0) {
-                    offeredAssetQty = Number(offeredAssetValue.lovelace);
-                } else {
-
-                    const offeredAsset = offeredAssetValue.assets.dump();
-                    Object.entries(offeredAsset).forEach(([keyMph, valueMph], index, arr) => {
-                        Object.entries(valueMph as {}).forEach(([tokenName, tokenQty], index, arr) => {
-                            console.log("offered mph: ", keyMph);
-                            console.log("offered token name: ", bytesToText(hexToBytes(tokenName)));
-                            console.log("offered token qty: ", tokenQty);
-
-                            offeredAssetMPH = keyMph;
-                            offeredAssetTN = tokenName;
-                            offeredAssetQty = tokenQty as number;
-
-                            arr.length = index + 1; // there will only be 1 token, so break
-                        })
-                        arr.length = index + 1; // there will only be 1 mph, so break
-                    })
-                }
-
-                const swapInfo = new SwapInfo(
-                    swap.addr,
-                    askedAssetMPH,
-                    askedAssetTN,
-                    askedAssetPrice,
-                    offeredAssetMPH,
-                    offeredAssetTN,
-                    offeredAssetQty);
-                swaps.push(swapInfo);
-            }
-            //console.log("getSwaps: swaps: ", swaps);
-            return swaps;
-            */
            return res.data;
 
         } else {
@@ -376,10 +228,6 @@ const getSwapUtxo = async (swapValidatorAddr : Address, beaconMPH : MintingPolic
         throw err;
     }
   }
-  
-
-
-
 
 const signSubmitTx = async (tx: Tx) : Promise<string> => {
     const payload = bytesToHex(tx.toCbor());
