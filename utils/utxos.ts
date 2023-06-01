@@ -9,6 +9,7 @@ import {
 
 
 export { getTokenNames,
+         getSwapDatumInfo,
          tokenCount }
 
 /**
@@ -18,7 +19,7 @@ export { getTokenNames,
  * @param {UTxO[]} utxos
  * @returns {string[]} 
  */
-const getTokenNames = async (tokenMph: MintingPolicyHash, utxos: UTxO[]): string[] => {
+const getTokenNames = async (tokenMph: MintingPolicyHash, utxos: UTxO[]): Promise<string[]> => {
     let tn = [];
     for (const utxo of utxos) {
         const mphs = utxo.value.assets.mintingPolicies;
@@ -72,3 +73,19 @@ const tokenList = (assets: Assets) => {
         })
     })
     */
+
+
+/**
+ * Return the askedAsset and offeredAsset inline Datum info.
+ * @package
+ * @param {UTxO} utxo
+ * @returns {{askedAssetValue: Value, offeredAssetValue: Value}}
+ */
+const getSwapDatumInfo = async (utxo: UTxO): Promise<{ askedAssetValue: Value; offeredAssetValue: Value; }> => {
+
+    const datumInfo = {
+        askedAssetValue: Value.fromUplcData(utxo.origOutput.datum.data.list[0]),
+        offeredAssetValue: Value.fromUplcData(utxo.origOutput.datum.data.list[1])
+    }
+    return datumInfo
+}
