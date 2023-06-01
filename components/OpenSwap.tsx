@@ -14,8 +14,7 @@ const openSwap = ({ onOpenSwap } : any) => {
     const onSubmit = (e : any) => {
         
         e.preventDefault() // prevent full page refresh
-        onOpenSwap([version,
-                    askedMPH,
+        onOpenSwap([askedMPH,
                     askedTN,
                     askedQty,
                     offeredMPH,
@@ -27,17 +26,8 @@ const openSwap = ({ onOpenSwap } : any) => {
     return (
 
         <form onSubmit={onSubmit}>
-            <div>
-                <b>Open Swap</b>
-                <hr></hr>
-                Version
-                <br></br>
-                <input name='version' type='text' id='version' placeholder='0' 
-                value={version}
-                onChange={(e) => setVersion(e.target.value)}
-                />
-                <p></p>                 
-            </div>
+            <b>Open Swap</b>
+            <hr></hr>
             <div>
                 Asked MPH
                 <br></br>

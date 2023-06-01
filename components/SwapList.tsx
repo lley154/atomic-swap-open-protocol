@@ -8,8 +8,7 @@ const Item = ({ asset, swapInfo } : any) => {
     console.log("SwapList: asset: ", asset);
     return(
         <tr>
-            <td><input type="radio" id="beacon" name="asset" value={asset} onChange={swapInfo}/></td>
-            <td>{asset}</td>
+            <td><input type="radio" id="beacon" name="asset" value={asset} onChange={swapInfo}/>&nbsp;{asset}</td>
         </tr>
     );
 }

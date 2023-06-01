@@ -16,6 +16,9 @@ const SwapInfo = ({ swapInfo } : any) => {
                 <tr><td>Offered Asset Minting Policy Hash</td><td>{swapInfo.offeredAssetMPH}</td></tr>
                 <tr><td>Offered Asset Token Name</td><td>{swapInfo.offeredAssetTN}</td></tr>
                 <tr><td>Offered Asset Quantity</td><td>{swapInfo.offeredAssetQty}</td></tr>
+                <tr><td>Seller Token</td><td>{swapInfo.sellerTokenTN}</td></tr>
+                <tr><td>Seller PKH</td><td>{swapInfo.sellerPkh}</td></tr>
+                <tr><td>Version</td><td>{swapInfo.version}</td></tr>
             </tbody>
             </table>
         </div>

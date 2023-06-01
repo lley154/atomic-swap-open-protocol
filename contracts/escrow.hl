@@ -9,6 +9,7 @@ struct Datum {
     productVal: Value
     sellerPkh: PubKeyHash
     sellerTokenId: Int
+    version: ByteArray
 }
 
 enum Redeemer {

@@ -3,6 +3,8 @@ import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import SwapInfo from '../../utils/swaps';
 
 import {
+    Bool,
+    bytesToHex,
     bytesToText,
     hexToBytes,
     ListData,
@@ -12,7 +14,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse ) {
 
-    const getSwapInfo = async (asset : string) : Promise<SwapInfo> => {
+    const getSwapInfo = async (beacon : string) : Promise<SwapInfo> => {
 
         const apiKey : string = process.env.NEXT_PUBLIC_BLOCKFROST_API_KEY as string;
     
@@ -23,13 +25,21 @@ export default async function handler(
         //const assets = await API.assetsPolicyByIdAll(mph);
         // Since we are using beacon token, there will only be one script address
         // one utxo and the inline datum will must exist
-        const address = await API.assetsAddresses(asset);
-        const utxo = await API.addressesUtxosAsset(address[0].address, asset);
+        const address = await API.assetsAddresses(beacon);
+        const utxo = await API.addressesUtxosAsset(address[0].address, beacon);
         const inlineDatum = utxo[0].inline_datum!;
         const datum = ListData.fromCbor(hexToBytes(inlineDatum));
         console.log("getSwapInfo: datum: ", datum.toSchemaJson());
+        
         const askedAssetValue =  Value.fromUplcData(datum.list[0]);
         const offeredAssetValue = Value.fromUplcData(datum.list[1]);
+        const escrowEnabled = Bool.fromUplcData(datum.list[2]);
+        const sellerTokenTN = datum.list[3].bytes;
+        console.log("sellerTokenTN: ", bytesToText(sellerTokenTN));
+        const sellerPkh = datum.list[4].bytes;
+        console.log("sellerPkh: ", bytesToHex(sellerPkh));
+        const version = datum.list[5].bytes;
+        console.log("version", bytesToText(version));
 
         let askedAssetMPH = "";
         let askedAssetTN = "";
@@ -84,14 +94,21 @@ export default async function handler(
         }
 
         const swapInfo = new SwapInfo(
+            beacon,
             address[0].address,
             askedAssetMPH,
             askedAssetTN,
             askedAssetPrice,
             offeredAssetMPH,
-            offeredAssetTN,
-            offeredAssetQty);
+            bytesToText(hexToBytes(offeredAssetTN)),
+            offeredAssetQty,
+            escrowEnabled.bool,
+            bytesToText(sellerTokenTN),
+            bytesToHex(sellerPkh),
+            bytesToText(version)
+        );
 
+       //console.log("swapInfo", swapInfo);
        return swapInfo;
     }
 

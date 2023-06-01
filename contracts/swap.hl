@@ -3,6 +3,13 @@ spending swap
 struct Datum {
     askedAssetVal: Value
     offeredAssetVal: Value
+    escrowEnabled: Bool
+    sellerTokenTN: ByteArray
+    sellerPkh: ByteArray
+    serviceFee: Int
+    minAda: Int
+    depositAda: Int
+    version: ByteArray
 }
 
 struct TokenDatum {
@@ -11,13 +18,13 @@ struct TokenDatum {
 
 enum Redeemer {
     Close {
-        sellerTN: ByteArray
+        sellerTokenTN: ByteArray
     }
     Swap {
         buyerPkh: PubKeyHash
     }
     Update {
-        sellerTN: ByteArray
+        sellerTokenTN: ByteArray
     }
 }
 
@@ -112,7 +119,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             // Create seller token that will be sent back to the seller
             sellerTokenAssetclass: AssetClass = AssetClass::new(
                 userTokenMph, 
-                red.sellerTN
+                red.sellerTokenTN
             );
             sellerTokenVal : Value = Value::new(sellerTokenAssetclass, 1);
 
@@ -130,7 +137,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
                 // Pull out the seller token value 
                 sellerToken: Map[ByteArray]Int = txOutputsContract.head.value.get_policy(userTokenMph);   
-                //sellerTN: String = (sellerToken.head_key).slice(0,56).decode_utf8();
+                //sellerTokenTN: String = (sellerToken.head_key).slice(0,56).decode_utf8();
                 sellerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMph: sellerToken};
                 sellerTokenVal = Value::from_map(sellerTokenMap);
                 
@@ -201,7 +208,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 // Create seller token that will be sent back to the seller
                 sellerTokenAssetclass: AssetClass = AssetClass::new(
                     userTokenMph, 
-                    red.sellerTN
+                    red.sellerTokenTN
                 );
                 sellerTokenVal : Value = Value::new(sellerTokenAssetclass, 1);
 

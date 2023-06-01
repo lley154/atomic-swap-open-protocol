@@ -18,8 +18,6 @@ import EscrowValidator from '../contracts/escrow.hl';
 import ProductTokenPolicy from '../contracts/productTokenPolicy.hl';
 import ProductTokenValidator from '../contracts/productTokenValidator.hl';
 
-import axios from 'axios';
-
 import { getNetworkParams,
          getSwapInfo,
          getSwaps,
@@ -59,7 +57,6 @@ declare global {
   }
 }
 
-
 // Helios config settings
 config.AUTO_SET_VALIDITY_RANGE = false;
 
@@ -72,10 +69,11 @@ const serviceFee: bigint = BigInt(1_000_000); // service fee for a swap tx
 const depositAda: bigint = BigInt(5_000_000); // buyer deposit for escrow
 const optimize = false;
 const network = "preview";
+const version = "1.0";
 
 // Compile the Beacon minting script
 const beaconProgram = new BeaconPolicy();
-beaconProgram.parameters = {["VERSION"] : "1.0"};
+beaconProgram.parameters = {["VERSION"] : version};
 beaconProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
 const beaconCompiledProgram = beaconProgram.compile(optimize);
 const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
@@ -208,7 +206,7 @@ const Home: NextPage = (props : any) => {
     }
   }
 
-  // user selects what wallet to connect to
+  // user selects the swap for more info
   const updateSwapDetails  = async (params : any) => {
 
     const beaconAsset = params.target.value;
@@ -217,8 +215,6 @@ const Home: NextPage = (props : any) => {
 
     setSwapInfo(swapInfo);
 
-
-    //setWhichWalletSelected(whichWalletSelected);
   }
 
 
@@ -242,7 +238,7 @@ const Home: NextPage = (props : any) => {
 
       // Compile the user token validator script
       const userTokenValProgram = new UserTokenValidator();
-      userTokenValProgram.parameters = {["VERSION"] : "1.0"};
+      userTokenValProgram.parameters = {["VERSION"] : version};
       userTokenValProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
       userTokenValProgram.parameters = {["USER_PKH"] : changeAddr.pubKeyHash.hex};
       const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
@@ -250,7 +246,7 @@ const Home: NextPage = (props : any) => {
 
       // Compile the user token policy script
       const userTokenPolicyProgram = new UserTokenPolicy();
-      userTokenPolicyProgram.parameters = {["VERSION"] : "1.0"};
+      userTokenPolicyProgram.parameters = {["VERSION"] : version};
       userTokenPolicyProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
       userTokenPolicyProgram.parameters = {["MIN_ADA"] : minAda};
       const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
@@ -377,7 +373,7 @@ const Home: NextPage = (props : any) => {
 
        // Compile the user token validator script
        const productTokenValProgram = new ProductTokenValidator();
-       productTokenValProgram.parameters = {["VERSION"] : "1.0"};
+       productTokenValProgram.parameters = {["VERSION"] : version};
        productTokenValProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
        productTokenValProgram.parameters = {["SELLER_PKH"] : changeAddr.pubKeyHash.hex};
        productTokenValProgram.parameters = {["PRODUCT_ID"] : productId};
@@ -386,7 +382,7 @@ const Home: NextPage = (props : any) => {
  
       // Compile the product token policy script
       const productTokenPolicyProgram = new ProductTokenPolicy();
-      productTokenPolicyProgram.parameters = {["VERSION"] : "1.0"};
+      productTokenPolicyProgram.parameters = {["VERSION"] : version};
       productTokenPolicyProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
       productTokenPolicyProgram.parameters = {["SELLER_PKH"] : changeAddr.pubKeyHash.hex};
       productTokenPolicyProgram.parameters = {["PRODUCT_ID"] : productId};
@@ -507,14 +503,13 @@ const Home: NextPage = (props : any) => {
     
     try {
 
-      const version = params[0] as string;
-      const askedMPH = params[1] as string;
-      const askedTN = textToBytes(params[2] as string);
-      const askedQty = params[3] as string;
-      const offeredMPH = params[4] as string;
-      const offeredTN = textToBytes(params[5] as string);
-      const offeredQty = params[6] as string;
-      const escrowEnabled = params[7] as string;
+      const askedMPH = params[0] as string;
+      const askedTN = textToBytes(params[1] as string);
+      const askedQty = params[2] as string;
+      const offeredMPH = params[3] as string;
+      const offeredTN = textToBytes(params[4] as string);
+      const offeredQty = params[5] as string;
+      const escrowEnabled = params[6] as string;
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));    
 
       // Re-enable wallet API since wallet account may have been changed
@@ -528,7 +523,7 @@ const Home: NextPage = (props : any) => {
 
       // Compile the user token validator script
       const userTokenValProgram = new UserTokenValidator();
-      userTokenValProgram.parameters = {["VERSION"] : "1.0"};
+      userTokenValProgram.parameters = {["VERSION"] : version};
       userTokenValProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
       userTokenValProgram.parameters = {["USER_PKH"] : changeAddr.pubKeyHash.hex};
       const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
@@ -536,7 +531,7 @@ const Home: NextPage = (props : any) => {
 
       // Compile the user token policy script
       const userTokenPolicyProgram = new UserTokenPolicy();
-      userTokenPolicyProgram.parameters = {["VERSION"] : "1.0"};
+      userTokenPolicyProgram.parameters = {["VERSION"] : version};
       userTokenPolicyProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
       userTokenPolicyProgram.parameters = {["MIN_ADA"] : minAda};
       const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
@@ -648,7 +643,11 @@ const Home: NextPage = (props : any) => {
       // Construct the swap datum
       const swapDatum = new (swapProgram.types.Datum)(
           askedAssetValue,
-          offeredAssetValue
+          offeredAssetValue,
+          (escrowEnabled === "true"),
+          textToBytes(sellerTokenName),
+          changeAddr.pubKeyHash.bytes,
+          textToBytes(version)
         )
       
       // Attach the output with product asset, beacon token
@@ -710,24 +709,18 @@ const Home: NextPage = (props : any) => {
 /**
  * Update swap askedAsset and/or offeredAsset
  * @package
- * @param {Value} askedAssetValue
- * @param {Value} offeredAssetValue
+ * @param {number} askedQty
+ * @param {number} offeredQty
  */
 const updateSwap = async (params : any) => {
     
   setIsLoading(true);
+  console.log("params: ", params);
   
   try {
 
-      const version = params[0] as string;
-      const askedMPH = params[1] as string;
-      const askedTN = textToBytes(params[2] as string);
-      const askedQty = params[3] as string;
-      const offeredMPH = params[4] as string;
-      const offeredTN = textToBytes(params[5] as string);
-      const offeredQty = params[6] as string;
-      const escrowEnabled = params[7] as string;
-      const sellerTokenTN = params[8] as string;
+      const askedQty = params[0] as string;
+      const offeredQty = params[1] as string;
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));    
 
       // Re-enable wallet API since wallet account may have been changed
@@ -741,7 +734,7 @@ const updateSwap = async (params : any) => {
 
       // Compile the user token validator script
       const userTokenValProgram = new UserTokenValidator();
-      userTokenValProgram.parameters = {["VERSION"] : "1.0"};
+      userTokenValProgram.parameters = {["VERSION"] : bytesToText(swapInfo.version)};
       userTokenValProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
       userTokenValProgram.parameters = {["USER_PKH"] : changeAddr.pubKeyHash.hex};
       const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
@@ -749,7 +742,7 @@ const updateSwap = async (params : any) => {
 
       // Compile the user token policy script
       const userTokenPolicyProgram = new UserTokenPolicy();
-      userTokenPolicyProgram.parameters = {["VERSION"] : "1.0"};
+      userTokenPolicyProgram.parameters = {["VERSION"] : bytesToText(swapInfo.version)};
       userTokenPolicyProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
       userTokenPolicyProgram.parameters = {["MIN_ADA"] : minAda};
       const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
@@ -757,21 +750,21 @@ const updateSwap = async (params : any) => {
 
       // Create the escrow script
       const escrowProgram = new EscrowValidator();
-      escrowProgram.parameters = {["VERSION"] : version};
+      escrowProgram.parameters = {["VERSION"] : bytesToText(swapInfo.version)};
       escrowProgram.parameters = {["SELLER_PKH"] : changeAddr.pubKeyHash.hex};
       escrowProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
       const escrowCompiledProgram = escrowProgram.compile(optimize);
 
       // Compile the swap script
       const swapProgram = new SwapValidator();
-      swapProgram.parameters = {["VERSION"] : version};
-      swapProgram.parameters = {["ASKED_MPH"] : askedMPH};
-      swapProgram.parameters = {["ASKED_TN"] : askedTN};
-      swapProgram.parameters = {["OFFERED_MPH"] : offeredMPH};
-      swapProgram.parameters = {["OFFERED_TN"] : offeredTN};
+      swapProgram.parameters = {["VERSION"] : swapInfo.version};
+      swapProgram.parameters = {["ASKED_MPH"] : swapInfo.askedMPH};
+      swapProgram.parameters = {["ASKED_TN"] : swapInfo.askedTN};
+      swapProgram.parameters = {["OFFERED_MPH"] : swapInfo.offeredMPH};
+      swapProgram.parameters = {["OFFERED_TN"] : swapInfo.offeredTN};
       swapProgram.parameters = {["BEACON_MPH"] : beaconMPH.hex};
-      swapProgram.parameters = {["SELLER_PKH"] : changeAddr.pubKeyHash.hex};
-      swapProgram.parameters = {["ESCROW_ENABLED"] : (escrowEnabled === "true")};
+      swapProgram.parameters = {["SELLER_PKH"] : swapInfo.sellerPkh};
+      swapProgram.parameters = {["ESCROW_ENABLED"] : swapInfo.escrowEnabled};
       swapProgram.parameters = {["ESCROW_HASH"] : escrowCompiledProgram.validatorHash.hex};
       swapProgram.parameters = {["USER_TOKEN_MPH"] : userTokenMPH.hex};
       swapProgram.parameters = {["USER_TOKEN_VHASH"] : userTokenValHash.hex};
@@ -794,13 +787,14 @@ const updateSwap = async (params : any) => {
       // Add the script as a witness to the transaction
       tx.attachScript(swapCompiledProgram);
 
-      // Create the swap redeemer
-      const swapRedeemer = (new swapProgram.types.Redeemer
-                              .Update(textToBytes(sellerTokenTN))
-                           )._toUplcData();
-      
       // Get the UTXO that has the swap datum
       const swapUtxo = await getSwapUtxo(Address.fromHashes(swapValHash), beaconMPH);
+
+      // Create the swap redeemer
+      const swapRedeemer = (new swapProgram.types.Redeemer
+                              .Update(textToBytes(swapInfo.sellerTokenTN))
+                           )._toUplcData();
+      
       tx.addInput(swapUtxo, swapRedeemer);  
       
       // Get the qty of the offeredAssetValue from the datum
@@ -808,13 +802,13 @@ const updateSwap = async (params : any) => {
 
       // Create updated offered asset value
       var offeredAssetValue;
-      if (offeredMPH === "") {
+      if (swapInfo.offeredMPH === "") {
         offeredAssetValue = new Value(BigInt(offeredQty));
       } else {
         const offeredAsset = new Assets();
         offeredAsset.addComponent(
-          MintingPolicyHash.fromHex(offeredMPH),
-          offeredTN,
+          MintingPolicyHash.fromHex(swapInfo.offeredMPH),
+          swapInfo.offeredTN,
           BigInt(offeredQty)
         );
         offeredAssetValue = new Value(BigInt(0), offeredAsset);
@@ -829,13 +823,13 @@ const updateSwap = async (params : any) => {
 
       // Construct the asked asset value
       var askedAssetValue;
-      if (askedMPH === "") {
+      if (swapInfo.askedMPH === "") {
         askedAssetValue = new Value(BigInt(askedQty));
       } else {
         const askedAsset = new Assets();
         askedAsset.addComponent(
-          MintingPolicyHash.fromHex(askedMPH),
-          askedTN,
+          MintingPolicyHash.fromHex(swapInfo.askedMPH),
+          swapInfo.askedTN,
           BigInt(askedQty)
         );
         askedAssetValue = new Value(BigInt(0), askedAsset);
@@ -844,7 +838,11 @@ const updateSwap = async (params : any) => {
       // Construct the swap datum
       const swapDatum = new (swapProgram.types.Datum)(
           askedAssetValue,
-          updatedOfferedAssetValue
+          updatedOfferedAssetValue,
+          swapInfo.escrowEnabled,
+          textToBytes(swapInfo.sellerTokenName),
+          textToBytes(swapInfo.sellerPkh),
+          textToBytes(version)
         )
 
       // Construct the Beacon value
@@ -854,7 +852,7 @@ const updateSwap = async (params : any) => {
       const beaconValue = new Value(BigInt(0), beaconAsset);
 
       // Construct the Seller Token value
-      const sellerToken : [number[], bigint][]  = [[textToBytes(sellerTokenTN), BigInt(1)]];
+      const sellerToken : [number[], bigint][]  = [[textToBytes(swapInfo.sellerTokenTN), BigInt(1)]];
       const sellerTokenAsset = new Assets([[userTokenMPH, sellerToken]]);
       const sellerTokenValue = new Value(BigInt(0), sellerTokenAsset);
       

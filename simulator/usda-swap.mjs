@@ -134,7 +134,7 @@ updatedOfferedAsset.addComponent(
 const updatedOfferedAssetValue = new Value(BigInt(0), updatedOfferedAsset);
 
 // Change price to 15 USDA and add 5 more product tokens
-await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig, sellerToken.tn); 
+await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig); 
 
 // Create usda token for swap asset
 const swapUSDATokenAsset = new Assets();
@@ -150,8 +150,8 @@ const swapAskedAssetValue = new Value(minAda, swapUSDATokenAsset);
 const buyerToken = await mintUserTokens(buyer, minAda);
 
 // Swap 50 usda tokens and get as many product tokens as possible
-await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, sellerToken.tn, buyerToken.tn);  
+await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, buyerToken.tn);  
 
 // Close the swap position
-await closeSwap(seller, swapConfig, sellerToken.tn);
+await closeSwap(seller, swapConfig);
 showWalletUTXOs("Buyer", buyer);

@@ -102,7 +102,7 @@ const updateSwap = ({ onUpdateSwap } : any) => {
                 <p></p>                 
             </div>
             <br></br>                   
-            <input type='submit' value='Open Swap'/>
+            <input type='submit' value='Update Swap'/>
         </form>
     )
 }

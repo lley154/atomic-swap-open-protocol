@@ -119,7 +119,7 @@ updatedOfferedAsset.addComponent(
 const updatedOfferedAssetValue = new Value(BigInt(0), updatedOfferedAsset);
 
 // Change price to 10 Ada and add 5 more product tokens
-await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig, sellerToken.tn); 
+await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig); 
 
 
 const swapAskedAssetValue = new Value(BigInt(25_000_000));
@@ -128,11 +128,11 @@ const swapAskedAssetValue = new Value(BigInt(25_000_000));
 const buyerToken = await mintUserTokens(buyer, minAda);
 
 // Swap 25 Ada and get as many product tokens as possible
-const orderId = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapConfig, escrowConfig, sellerToken.tn, buyerToken.tn);
+const orderId = await assetSwapEscrow(buyer, seller, swapAskedAssetValue, swapConfig, escrowConfig, buyerToken.tn);
 
 // Approve the escrow for a given order id
 await approveEscrow(orderId, buyer, seller, escrowConfig);   
 
 // Close the swap position
-await closeSwap(seller, swapConfig, sellerToken.tn);
+await closeSwap(seller, swapConfig);
 showWalletUTXOs("Buyer", buyer);
