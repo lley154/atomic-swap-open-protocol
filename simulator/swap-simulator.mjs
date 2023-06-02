@@ -823,7 +823,7 @@ const openSwap = async (seller, askedAssetValue, offeredAssetValue, swapConfig) 
 
         // Construct the Beacon asset & value
         const beaconTN = swapCompiledProgram.validatorHash.hex;
-        const beaconToken = [[hexToBytes(beaconTN), BigInt(1)]];
+        const beaconToken = [[beaconTN, BigInt(1)]];
         const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
         const beaconValue = new Value(BigInt(0), beaconAsset);
         
@@ -984,7 +984,7 @@ const updateSwap = async (seller, askedAssetValue, offeredAssetValue, swapConfig
 
         // Construct the Beacon value
         const beaconTN = swapCompiledProgram.validatorHash.hex;
-        const beaconToken = [[hexToBytes(beaconTN), BigInt(1)]];
+        const beaconToken = [[beaconTN, BigInt(1)]];
         const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
         const beaconValue = new Value(BigInt(0), beaconAsset);
 
@@ -1136,7 +1136,7 @@ const assetSwap = async (buyer, swapAskedAssetValue, swapConfig, buyerTN) => {
         
         // Construct the Beacon asset
         const beaconTN = swapCompiledProgram.validatorHash.hex;
-        const beaconToken = [[hexToBytes(beaconTN), BigInt(1)]];
+        const beaconToken = [[beaconTN, BigInt(1)]];
         const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
         const beaconValue = new Value(BigInt(0), beaconAsset);
 
@@ -1372,7 +1372,7 @@ const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowCon
 
         // Construct the Beacon asset
         const beaconTN = swapCompiledProgram.validatorHash.hex;
-        const beaconToken = [[hexToBytes(beaconTN), BigInt(1)]];
+        const beaconToken = [[beaconTN, BigInt(1)]];
         const beaconAsset = new Assets([[beaconMPH, beaconToken]]);
         const beaconValue = new Value(BigInt(0), beaconAsset);
 
@@ -1776,7 +1776,7 @@ const closeSwap = async (seller, swapConfig) => {
 
         // Create beacon token for burning
         const beaconTN = swapCompiledProgram.validatorHash.hex;
-        const beaconToken = [[hexToBytes(beaconTN), BigInt(-1)]];
+        const beaconToken = [[beaconTN, BigInt(-1)]];
 
         // Add the mint to the tx
         tx.mintTokens(

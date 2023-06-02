@@ -27,19 +27,22 @@ export default async function handler(
         // one utxo and the inline datum will must exist
         const address = await API.assetsAddresses(beacon);
         const utxo = await API.addressesUtxosAsset(address[0].address, beacon);
+        const metaData = (await API.txsMetadata(utxo[0].tx_hash))[0].json_metadata;
+        console.log("getSwapInfo: metaData[0].json_metadata: ", metaData);
+        //console.log("getSwapInfo: metaData[0].json_metadata: ", JSON.stringify(metaData));
+        
+        const metaDataObj = JSON.parse((JSON.stringify(metaData)));
+        //console.log("mph", mph);
+        //console.log("tn", tn);
+        //console.log("getSwapInfo: metaData[0].json_metadata: test: ", test);
+        //console.log("getSwapInfo: metaData[0].json_metadata: test[mph]: ", test[mph][tn]);
+        //console.log("getSwapInfo: metaData[0].json_metadata: test[mph]: version: ", test[mph][tn]['VERSION']);
         const inlineDatum = utxo[0].inline_datum!;
         const datum = ListData.fromCbor(hexToBytes(inlineDatum));
         console.log("getSwapInfo: datum: ", datum.toSchemaJson());
         
         const askedAssetValue =  Value.fromUplcData(datum.list[0]);
         const offeredAssetValue = Value.fromUplcData(datum.list[1]);
-        const escrowEnabled = Bool.fromUplcData(datum.list[2]);
-        const sellerTokenTN = datum.list[3].bytes;
-        console.log("sellerTokenTN: ", bytesToText(sellerTokenTN));
-        const sellerPkh = datum.list[4].bytes;
-        console.log("sellerPkh: ", bytesToHex(sellerPkh));
-        const version = datum.list[5].bytes;
-        console.log("version", bytesToText(version));
 
         let askedAssetMPH = "";
         let askedAssetTN = "";
@@ -93,6 +96,18 @@ export default async function handler(
             })
         }
 
+        const mph = beacon.substring(0,56);
+        const tn = beacon.substring(56);
+        const escrowHash = metaDataObj[mph][tn]['ESCROW_HASH'];
+        const escrowEnabled = metaDataObj[mph][tn]['ESCROW_ENABLED']
+        const serviceFee = metaDataObj[mph][tn]['SERVICE_FEE'];
+        const sellerTN = metaDataObj[mph][tn]['SELLER_TN'];
+        const sellerPkh = metaDataObj[mph][tn]['SELLER_PKH'];
+        const minAda = metaDataObj[mph][tn]['MIN_ADA'];
+        const ownerPkh = metaDataObj[mph][tn]['OWNER_PKH'];
+        const depositAda = metaDataObj[mph][tn]['DEPOSIT_ADA'];
+        const version = metaDataObj[mph][tn]['VERSION'];
+
         const swapInfo = new SwapInfo(
             beacon,
             address[0].address,
@@ -100,15 +115,20 @@ export default async function handler(
             askedAssetTN,
             askedAssetPrice,
             offeredAssetMPH,
-            bytesToText(hexToBytes(offeredAssetTN)),
+            offeredAssetTN,
             offeredAssetQty,
-            escrowEnabled.bool,
-            bytesToText(sellerTokenTN),
-            bytesToHex(sellerPkh),
-            bytesToText(version)
+            (escrowEnabled === "true"),
+            escrowHash,
+            sellerTN,
+            sellerPkh,
+            serviceFee,
+            ownerPkh,
+            minAda,
+            depositAda,
+            version
         );
 
-       //console.log("swapInfo", swapInfo);
+       console.log("swapInfo", swapInfo);
        return swapInfo;
     }
 

@@ -34,6 +34,7 @@ import {
   Assets,
   Address,
   bytesToText,
+  bytesToHex,
   Cip30Handle,
   Cip30Wallet,
   config,
@@ -61,6 +62,7 @@ declare global {
 config.AUTO_SET_VALIDITY_RANGE = false;
 
 // Global variables
+const version = "1.0";
 const minAda : bigint = BigInt(2_500_000); // minimum lovelace needed to send an NFT
 const maxTxFee: bigint = BigInt(500_000); // maximum estimated transaction fee
 const minChangeAmt: bigint = BigInt(1_000_000); // minimum lovelace needed to be sent back as change
@@ -69,7 +71,7 @@ const serviceFee: bigint = BigInt(1_000_000); // service fee for a swap tx
 const depositAda: bigint = BigInt(5_000_000); // buyer deposit for escrow
 const optimize = false;
 const network = "preview";
-const version = "1.0";
+
 
 // Compile the Beacon minting script
 const beaconProgram = new BeaconPolicy();
@@ -521,6 +523,7 @@ const Home: NextPage = (props : any) => {
       const networkParamsPreview = await getNetworkParams(network);
       const networkParams = new NetworkParams(networkParamsPreview);
 
+
       // Compile the user token validator script
       const userTokenValProgram = new UserTokenValidator();
       userTokenValProgram.parameters = {["VERSION"] : version};
@@ -543,6 +546,25 @@ const Home: NextPage = (props : any) => {
       escrowProgram.parameters = {["SELLER_PKH"] : changeAddr.pubKeyHash.hex};
       escrowProgram.parameters = {["OWNER_PKH"] : ownerPkh.hex};
       const escrowCompiledProgram = escrowProgram.compile(optimize);
+
+      // Get the UTxOs in Seller wallet
+      const utxos = await walletHelper.pickUtxos(minUTXOVal);
+
+      // Get the Seller Token Name
+      let sellerTokenTN: string[] = await getTokenNames(userTokenMPH, utxos[0]);
+      var sellerTokenName;
+      if (sellerTokenTN.length > 0) {
+        sellerTokenName = sellerTokenTN.pop()!; // grab the first token name found
+      } else {
+        // If the seller token was not in the first set of UTXOs, look in the spares
+        let sellerTokenTN: string[] = await getTokenNames(userTokenMPH, utxos[1]);
+        
+        if (sellerTokenTN.length > 0) {
+          sellerTokenName = sellerTokenTN.pop()!; // grab the first token name found
+        } else {
+          throw console.error("No user token found");
+        }
+      }
           
       // Compile the swap script
       const swapProgram = new SwapValidator();
@@ -553,6 +575,7 @@ const Home: NextPage = (props : any) => {
       swapProgram.parameters = {["OFFERED_TN"] : offeredTN};
       swapProgram.parameters = {["BEACON_MPH"] : beaconMPH.hex};
       swapProgram.parameters = {["SELLER_PKH"] : changeAddr.pubKeyHash.hex};
+      swapProgram.parameters = {["SELLER_TN"] : textToBytes(sellerTokenName)};
       swapProgram.parameters = {["ESCROW_ENABLED"] : (escrowEnabled === "true")};
       swapProgram.parameters = {["ESCROW_HASH"] : escrowCompiledProgram.validatorHash.hex};
       swapProgram.parameters = {["USER_TOKEN_MPH"] : userTokenMPH.hex};
@@ -563,9 +586,7 @@ const Home: NextPage = (props : any) => {
       swapProgram.parameters = {["DEPOSIT_ADA"] : depositAda};
       const swapCompiledProgram = swapProgram.compile(optimize);  
 
-      // Now we are able to get the UTxOs in Seller wallet
-      const utxos = await walletHelper.pickUtxos(minUTXOVal);
-
+     
       // Start building the transaction
       const tx = new Tx();
 
@@ -591,22 +612,6 @@ const Home: NextPage = (props : any) => {
           beaconToken,
           beaconRedeemer
       )
-
-      // Construct the Seller Token value
-      let sellerTokenTN: string[] = await getTokenNames(userTokenMPH, utxos[0]);
-      var sellerTokenName;
-      if (sellerTokenTN.length > 0) {
-        sellerTokenName = sellerTokenTN.pop()!; // grab the first token name found
-      } else {
-        // If the seller token was not in the first set of UTXOs, look in the spares
-        let sellerTokenTN: string[] = await getTokenNames(userTokenMPH, utxos[1]);
-        
-        if (sellerTokenTN.length > 0) {
-          sellerTokenName = sellerTokenTN.pop()!; // grab the first token name found
-        } else {
-          throw console.error("No user token found");
-        }
-      }
 
       const sellerToken: [number[], bigint][] = [[textToBytes(sellerTokenName), BigInt(1)]];
       const sellerTokenAsset = new Assets([[userTokenMPH, sellerToken]]);
@@ -643,11 +648,7 @@ const Home: NextPage = (props : any) => {
       // Construct the swap datum
       const swapDatum = new (swapProgram.types.Datum)(
           askedAssetValue,
-          offeredAssetValue,
-          (escrowEnabled === "true"),
-          textToBytes(sellerTokenName),
-          changeAddr.pubKeyHash.bytes,
-          textToBytes(version)
+          offeredAssetValue
         )
       
       // Attach the output with product asset, beacon token
@@ -677,6 +678,30 @@ const Home: NextPage = (props : any) => {
 
       // Add app wallet pkh as a signer which is required to mint beacon
       tx.addSigner(ownerPkh);
+
+      tx.addMetadata(2000, {"map": [[beaconMPH.hex, {"map": [[beaconTN,
+                {
+                  "map": [["VERSION", version],
+                          ["ASKED_MPH", askedMPH],
+                          ["ASKED_TN", bytesToHex(askedTN)],
+                          ["OFFERED_MPH", offeredMPH],
+                          ["OFFERED_TN", bytesToHex(offeredTN)],
+                          ["BEACON_MPH", beaconMPH.hex],
+                          ["SELLER_PKH", changeAddr.pubKeyHash.hex],
+                          ["SELLER_TN", bytesToHex(textToBytes(sellerTokenName))],
+                          ["ESCROW_ENABLED", escrowEnabled],
+                          ["ESCROW_HASH", escrowCompiledProgram.validatorHash.hex],
+                          ["USER_TOKEN_MPH", userTokenMPH.hex],
+                          ["USER_TOKEN_VHASH", userTokenValHash.hex],
+                          ["SERVICE_FEE", serviceFee.toString()],
+                          ["OWNER_PKH", ownerPkh.hex],
+                          ["MIN_ADA", minAda.toString()],
+                          ["DEPOSIT_ADA", depositAda.toString()]
+                        ]
+                  } 
+              ]]}
+          ]]
+      });
 
       console.log("tx before final", tx.dump());
       await tx.finalize(networkParams, changeAddr, utxos[1]);
@@ -838,11 +863,7 @@ const updateSwap = async (params : any) => {
       // Construct the swap datum
       const swapDatum = new (swapProgram.types.Datum)(
           askedAssetValue,
-          updatedOfferedAssetValue,
-          swapInfo.escrowEnabled,
-          textToBytes(swapInfo.sellerTokenName),
-          textToBytes(swapInfo.sellerPkh),
-          textToBytes(version)
+          updatedOfferedAssetValue
         )
 
       // Construct the Beacon value

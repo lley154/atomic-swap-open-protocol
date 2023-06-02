@@ -9,9 +9,11 @@ export default class SwapInfo {
     public offeredAssetTN : string
     public offeredAssetQty : number
     public escrowEnabled : boolean
-    public sellerTokenTN : string
+    public escrowHash : string
+    public sellerTN : string
     public sellerPkh : string
     public serviceFee : number
+    public ownerPkh : string
     public minAda : number
     public depositAda : number
     public version : string
@@ -25,9 +27,11 @@ export default class SwapInfo {
                 offeredAssetTN : string,
                 offeredAssetQty : number,
                 escrowEnabled : boolean,
-                sellerTokenTN : string,
+                escrowHash : string,
+                sellerTN : string,
                 sellerPkh : string,
                 serviceFee : number,
+                ownerPkh : string,
                 minada : number,
                 depositAda : number,
                 version : string) {
@@ -40,9 +44,11 @@ export default class SwapInfo {
         this.offeredAssetTN = offeredAssetTN;
         this.offeredAssetQty = offeredAssetQty;
         this.escrowEnabled = escrowEnabled;
-        this.sellerTokenTN = sellerTokenTN;
+        this.escrowHash = escrowHash;
+        this.sellerTN = sellerTN;
         this.sellerPkh = sellerPkh;
         this.serviceFee = serviceFee;
+        this.ownerPkh = ownerPkh;
         this.minAda = minada;
         this.depositAda = depositAda;
         this.version = version;
