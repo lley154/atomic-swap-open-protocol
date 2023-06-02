@@ -41,8 +41,11 @@ export {
     network,
     showWalletUTXOs,
     SwapConfig,
+    version,
     updateSwap
 }
+
+const version = "1.0";
 
 config.AUTO_SET_VALIDITY_RANGE = false;
 
@@ -86,6 +89,7 @@ class SwapConfig {
                 offeredTN, 
                 beaconMPH,  
                 sellerPkh,
+                sellerTN,
                 escrowEnabled,
                 escrowHash,
                 userTokenMPH,
@@ -101,6 +105,7 @@ class SwapConfig {
       this.offeredTN = offeredTN;
       this.beaconMPH = beaconMPH;
       this.sellerPkh = sellerPkh;
+      this.sellerTN = sellerTN;
       this.escrowEnabled = escrowEnabled;
       this.escrowHash = escrowHash;
       this.userTokenMPH = userTokenMPH;
@@ -130,7 +135,7 @@ class EscrowConfig {
 // Compile the Beacon minting script
 const beaconScript = await fs.readFile('./contracts/beacon.hl', 'utf8');
 const beaconProgram = Program.new(beaconScript);
-beaconProgram.parameters = {["VERSION"] : "1.0"};
+beaconProgram.parameters = {["VERSION"] : version};
 beaconProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
 const beaconCompiledProgram = beaconProgram.compile(optimize);
 const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
@@ -138,7 +143,7 @@ const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
 // Compile the Points minting script
 const pointsScript = await fs.readFile('./contracts/points.hl', 'utf8');
 const pointsProgram = Program.new(pointsScript);
-pointsProgram.parameters = {["VERSION"] : "1.0"};
+pointsProgram.parameters = {["VERSION"] : version};
 pointsProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
 const pointsCompiledProgram = pointsProgram.compile(optimize);
 const pointsMPH = pointsCompiledProgram.mintingPolicyHash;
@@ -150,7 +155,7 @@ const pointsToken = [[pointsTN, BigInt(1)]];
 // Compile the Rewards minting script
 const rewardsScript = await fs.readFile('./contracts/rewards.hl', 'utf8');
 const rewardsProgram = Program.new(rewardsScript);
-rewardsProgram.parameters = {["VERSION"] : "1.0"};
+rewardsProgram.parameters = {["VERSION"] : version};
 rewardsProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
 const rewardsCompiledProgram = rewardsProgram.compile(optimize);
 const rewardsMPH = rewardsCompiledProgram.mintingPolicyHash;
@@ -169,7 +174,6 @@ const userTokenValProgram = Program.new(userTokenValScript);
 
 /**
  * Throws an error if 'cond' is false.
- * @package
  * @param {boolean} cond 
  * @param {string} msg 
  */
@@ -181,7 +185,8 @@ function assert(cond, msg = "assertion failed") {
 
 /**
  * Prints out the UTXOs for the buyer and seller wallets
- * @package
+ * @param {string} name
+ * @param {WalletEmulator} wallet
  */
 const showWalletUTXOs = async (name, wallet) => {
 
@@ -200,7 +205,6 @@ const showWalletUTXOs = async (name, wallet) => {
 /**
  * Prints out the UTXOs at the swap script address
  * @param {SwapConfig} swapConfig
- * @package
  */
 const showSwapScriptUTXOs = async (swapConfig) => {
 
@@ -211,6 +215,7 @@ const showSwapScriptUTXOs = async (swapConfig) => {
     swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
     swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
     swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+    swapProgram.parameters = {["SELLER_TN"] : textToBytes(swapConfig.sellerTN)};
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
     swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
@@ -266,7 +271,6 @@ const showEscrowScriptUTXOs = async (escrowConfig) => {
  * Prints out the UTXOs at the swap script address
  * @param {Address} address
  * @param {string} name
- * @package
  */
 const showScriptUTXOs = async (address, name) => {
 
@@ -285,7 +289,6 @@ const showScriptUTXOs = async (address, name) => {
 
 /**
  * Get the UTXO at the swap address which contains the beacon token
- * @package
  * @param {SwapConfig} swapConfig
  * @returns {UTxO} 
  */
@@ -298,6 +301,7 @@ const getSwapUTXO = async (swapConfig) => {
     swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
     swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
     swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+    swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
     swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
@@ -321,7 +325,6 @@ const getSwapUTXO = async (swapConfig) => {
 
 /**
  * Get the UTXO at the escrow address
- * @package
  * @param {PubKeyHash} buyerPkh
  * @param {PubKeyHash} sellerPkh
  * @param {string} orderId 
@@ -339,9 +342,9 @@ const getEscrowUTXO = async (orderId, buyerPkh, sellerPkh, escrowConfig) => {
     for (const utxo of escrowUtxos) {
 
         // only one UTXO with orderId, buyerPkh & sellerPkh should exist
-        if (bytesToText(utxo.origOutput.datum.data.list[3].bytes) === orderId &&
+        if (bytesToText(utxo.origOutput.datum.data.list[2].bytes) === orderId &&
             PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[0]).hex === buyerPkh.hex &&
-            PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[6]).hex === sellerPkh.hex) { 
+            PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[5]).hex === sellerPkh.hex) { 
             console.log("");
             console.log("getEscrowUTXO: UTXO with order found");
             return utxo;
@@ -351,21 +354,20 @@ const getEscrowUTXO = async (orderId, buyerPkh, sellerPkh, escrowConfig) => {
 
 /**
  * Get the UTXO at the reference user token validator script
- * @package
  * @param {string} sellerTokenMPH
  * @param {string} sellerTokenTN
  * @returns {UTxO}
  */
-const getRefTokenUTXO = async (user, userTokenMPH, userTokenTN, minAda) => {
+const getRefTokenUTXO = async (userPkh, userTokenTN, swapConfig) => {
 
     const userToken = [[userTokenTN, BigInt(1)]];
-    const userTokenAsset = new Assets([[MintingPolicyHash.fromHex(userTokenMPH), userToken]]);
-    const userTokenValue = new Value(BigInt(minAda), userTokenAsset);
+    const userTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), userToken]]);
+    const userTokenValue = new Value(swapConfig.minAda, userTokenAsset);
     
     // Compile the user token validator script
-    userTokenValProgram.parameters = {["VERSION"] : "1.0"};
-    userTokenValProgram.parameters = {["USER_PKH"] : user.pubKeyHash.hex};
-    userTokenValProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
+    userTokenValProgram.parameters = {["VERSION"] : swapConfig.version};
+    userTokenValProgram.parameters = {["USER_PKH"] : userPkh};
+    userTokenValProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
     
     const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
     const userTokenValHash = userTokenValCompiledProgram.validatorHash;
@@ -389,7 +391,6 @@ const getRefTokenUTXO = async (user, userTokenMPH, userTokenTN, minAda) => {
 
 /**
  * Obtain the 1st minting policy hash, token name and qty from a value.
- * @package
  * @param {Value} value
  * @return {{mph: string, tn: string, qty: bigint}}
  */
@@ -422,7 +423,6 @@ const getMphTnQty = async (value) => {
 /**
  * Determine the quantity of a product a buyer can purchase
  * given the amount he is willing to pay.
- * @package
  * @param {UTxO, number} utxo
  * @param {UTxO, Value} swapAskedAssetValue
  * @returns {{askedAssetVal: Value, 
@@ -589,61 +589,41 @@ const calcOrderDetails = async (utxo, swapAskedAssetValue) => {
 
 /**
  * Return the inline Datum info
- * @package
  * @param {UTxO} utxo
- * @returns {{askedAssetValue: Value, 
- *             offeredAssetValue: Value,
- *             escrowEnabled: Bool,
- *             sellerTokenTN: ByteArrayData,
- *             sellerPkh: ByteArrayData,
- *             serviceFee: IntData,
- *             minAda: IntData,
- *             depositAda: IntData,
- *             version: ByteArrayData
- *            }}
+ * @returns {askedAssetValue: Value, 
+ *           offeredAssetValue: Value
+ *          }
  */
 const getSwapDatumInfo = async (utxo) => {
 
     const datumInfo = {
         askedAssetValue: Value.fromUplcData(utxo.origOutput.datum.data.list[0]),
-        offeredAssetValue: Value.fromUplcData(utxo.origOutput.datum.data.list[1]),
-        escrowEnabled: Bool.fromUplcData(utxo.origOutput.datum.data.list[2]),
-        sellerTokenTN: utxo.origOutput.datum.data.list[3],
-        sellerPkh: utxo.origOutput.datum.data.list[4],
-        serviceFee: utxo.origOutput.datum.data.list[5].int,
-        minAda : utxo.origOutput.datum.data.list[6].int,
-        depositAda : utxo.origOutput.datum.data.list[7].int,
-        version: utxo.origOutput.datum.data.list[8],
+        offeredAssetValue: Value.fromUplcData(utxo.origOutput.datum.data.list[1])
     }
     return datumInfo
 }
 
 /**
  * Return the datum info attached to the UTXO locked at escrow contract
- * @package
  * @param {UTxO} utxo
  * @returns {{  buyerPkh: PubKeyHash,
- *              buyerTokenId: number,
  *              depositVal: Value,
  *              orderId: ByteArray,
  *              orderVal: Value,
  *              productVal: Value,
- *              sellerPkh: PubKeyHash,
- *              sellerTokenId: number}} 
+ *              sellerPkh: PubKeyHash}} 
  */
 const getEscrowDatumInfo = async (utxo) => {
 
     const datumInfo = {
         
         buyerPkh: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[0]),
-        buyerTokenId: utxo.origOutput.datum.data.list[1],
-        depositVal: Value.fromUplcData(utxo.origOutput.datum.data.list[2]),
-        orderId: utxo.origOutput.datum.data.list[3].bytes,
-        orderVal: Value.fromUplcData(utxo.origOutput.datum.data.list[4]),
-        productVal: Value.fromUplcData(utxo.origOutput.datum.data.list[5]),
-        sellerPkh: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[6]),
-        sellerTokenId: utxo.origOutput.datum.data.list[7],
-        version: utxo.origOutput.datum.data.list[8]
+        depositVal: Value.fromUplcData(utxo.origOutput.datum.data.list[1]),
+        orderId: utxo.origOutput.datum.data.list[2].bytes,
+        orderVal: Value.fromUplcData(utxo.origOutput.datum.data.list[3]),
+        productVal: Value.fromUplcData(utxo.origOutput.datum.data.list[4]),
+        sellerPkh: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[5]),
+        version: utxo.origOutput.datum.data.list[6]
     }
     return datumInfo
 }
@@ -651,7 +631,6 @@ const getEscrowDatumInfo = async (utxo) => {
 
 /**
  * Mint user tokens including the reference token
- * @package
  * @param {WalletEmulator} user
  * @param {number} qty
  */
@@ -664,14 +643,14 @@ const mintUserTokens = async (user, minAda) => {
         await showWalletUTXOs("User", user);
 
         // Compile the user token validator script
-        userTokenValProgram.parameters = {["VERSION"] : "1.0"};
+        userTokenValProgram.parameters = {["VERSION"] : version};
         userTokenValProgram.parameters = {["USER_PKH"] : user.pubKeyHash.hex};
         userTokenValProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
         const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
         const userTokenValHash = userTokenValCompiledProgram.validatorHash;
 
         // Compile the user token policy script
-        userTokenPolicyProgram.parameters = {["VERSION"] : "1.0"};
+        userTokenPolicyProgram.parameters = {["VERSION"] : version};
         userTokenPolicyProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
         userTokenPolicyProgram.parameters = {["MIN_ADA"] : minAda};
         const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
@@ -780,7 +759,7 @@ const mintUserTokens = async (user, minAda) => {
         await showScriptUTXOs(Address.fromHashes(userTokenValHash), "User Token");
         return {
             mph: userTokenMPH.hex,
-            tn: bytesToText(userTokenTN),
+            tn: bytesToHex(userTokenTN),
             vHash: userTokenValHash.hex
         }
 
@@ -792,21 +771,17 @@ const mintUserTokens = async (user, minAda) => {
 
 /**
  * Initialize the swap smart contract and mint a beacon token.
- * @package
- * @param {WalletEmulator} buyer
  * @param {WalletEmulator} seller
  * @param {Value} askedAssetValue
  * @param {Value} offeredAssetValue
  * @param {SwapConfig} swapConfig
- * @param {string} sellerTokenTN
  */
-const openSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerTokenTN) => {
+const openSwap = async (seller, askedAssetValue, offeredAssetValue, swapConfig) => {
 
     try {
         console.log("");
         console.log("************ OPEN SWAP ************");
         console.log("************ PRE-TEST *************");
-        await showWalletUTXOs("Buyer", buyer);
         await showWalletUTXOs("Seller", seller);
 
         // Compile the swap script
@@ -817,6 +792,7 @@ const openSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+        swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
@@ -859,21 +835,14 @@ const openSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
         )
 
         // Construct the Seller Token value
-        const sellerToken = [[textToBytes(sellerTokenTN), BigInt(1)]];
+        const sellerToken = [[swapConfig.sellerTN, BigInt(1)]];
         const sellerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), sellerToken]]);
         const sellerTokenValue = new Value(BigInt(0), sellerTokenAsset);
         
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
             askedAssetValue,
-            offeredAssetValue,
-            swapConfig.escrowEnabled,
-            textToBytes(sellerTokenTN),
-            seller.pubKeyHash.bytes,
-            swapConfig.serviceFee,
-            swapConfig.minAda,
-            swapConfig.depositAda,
-            swapConfig.version
+            offeredAssetValue
           )
         
         // Attach the output with product asset, beacon token
@@ -927,7 +896,6 @@ const openSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
 
         console.log("");
         console.log("************ POST-TEST ************");
-        await showWalletUTXOs("Buyer", buyer);
         await showWalletUTXOs("Seller", seller);
         await showSwapScriptUTXOs(swapConfig);
         return true;
@@ -940,11 +908,12 @@ const openSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapC
 
 /**
  * Update swap askedAsset and/or offeredAsset
- * @package
+ * @param {WalletEmulator} seller
  * @param {Value} askedAssetValue
  * @param {Value} offeredAssetValue
+ * @param {SwapConfig} swapConfig
  */
-const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swapConfig) => {
+const updateSwap = async (seller, askedAssetValue, offeredAssetValue, swapConfig) => {
     
     try {
         console.log("");
@@ -953,7 +922,6 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
-        await showWalletUTXOs("Buyer", buyer);
         await showWalletUTXOs("Seller", seller);
         await showSwapScriptUTXOs(swapConfig);
 
@@ -965,6 +933,7 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+        swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
@@ -996,9 +965,7 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         const datumInfo = await getSwapDatumInfo(swapUtxo);
 
         // Create the swap redeemer
-        const swapRedeemer = (new swapProgram.types.Redeemer
-                                .Update(datumInfo.sellerTokenTN.bytes)
-                             )._toUplcData();
+        const swapRedeemer = (new swapProgram.types.Redeemer.Update())._toUplcData();
         
         tx.addInput(swapUtxo, swapRedeemer);  
 
@@ -1012,14 +979,7 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
             askedAssetValue,
-            updatedOfferedAssetValue,
-            datumInfo.escrowEnabled,
-            datumInfo.sellerTokenTN.bytes,
-            datumInfo.sellerPkh.bytes,
-            datumInfo.serviceFee,
-            datumInfo.minAda,
-            datumInfo.depositAda,
-            datumInfo.version.bytes
+            updatedOfferedAssetValue
           )
 
         // Construct the Beacon value
@@ -1029,11 +989,11 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
         const beaconValue = new Value(BigInt(0), beaconAsset);
 
         // Construct the Seller Token value
-        const sellerToken = [[datumInfo.sellerTokenTN.bytes, BigInt(1)]];
+        const sellerToken = [[swapConfig.sellerTN, BigInt(1)]];
         const sellerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), sellerToken]]);
         const sellerTokenValue = new Value(BigInt(0), sellerTokenAsset);
         
-        const swapValue = (new Value(datumInfo.minAda))
+        const swapValue = (new Value(swapConfig.minAda))
                             .add(updatedOfferedAssetValue)
                             .add(beaconValue)
                             .add(sellerTokenValue);
@@ -1080,7 +1040,6 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
 
         console.log("");
         console.log("************ POST-TEST ************");
-        await showWalletUTXOs("Buyer", buyer);
         await showWalletUTXOs("Seller", seller);
         await showSwapScriptUTXOs(swapConfig);
         return true;
@@ -1093,10 +1052,13 @@ const updateSwap = async (buyer, seller, askedAssetValue, offeredAssetValue, swa
 
 /**
  * Execute a swap with a given amount
- * @package
- * @param {Value} swapAskedAssetValue
+ * @param {WalletEmulator} buyer
+ * @param {Value} askedAssetValue
+ * @param {Value} offeredAssetValue
+ * @param {SwapConfig} swapConfig
+ * @param {string} buyerTN
  */
-const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTokenTN) => {
+const assetSwap = async (buyer, swapAskedAssetValue, swapConfig, buyerTN) => {
 
     try {
         console.log("");
@@ -1106,7 +1068,6 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
         await showWalletUTXOs("Buyer", buyer);
-        await showWalletUTXOs("Seller", seller);
         await showWalletUTXOs("Owner", owner);
         await showSwapScriptUTXOs(swapConfig);
 
@@ -1118,6 +1079,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+        swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
@@ -1152,9 +1114,9 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
         tx.addInput(swapUtxo, swapRedeemer); 
 
         // Add the buyer & sell reference user tokens
-        const buyerRefTokenUtxo = await getRefTokenUTXO(buyer, swapConfig.userTokenMPH, textToBytes(buyerTokenTN), datumInfo.minAda);
+        const buyerRefTokenUtxo = await getRefTokenUTXO(buyer.pubKeyHash.hex, buyerTN, swapConfig);
         tx.addRefInput(buyerRefTokenUtxo);
-        const sellerRefTokenUtxo = await getRefTokenUTXO(seller, swapConfig.userTokenMPH, datumInfo.sellerTokenTN.bytes, datumInfo.minAda);
+        const sellerRefTokenUtxo = await getRefTokenUTXO(swapConfig.sellerPkh, swapConfig.sellerTN, swapConfig);
         tx.addRefInput(sellerRefTokenUtxo);
         
         // Calc the amount of products remaining
@@ -1169,14 +1131,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
             orderDetails.askedAssetVal,     // askedAsset
-            orderDetails.offeredAssetVal,    // offeredAsset
-            datumInfo.escrowEnabled,
-            datumInfo.sellerTokenTN.bytes,
-            datumInfo.sellerPkh.bytes,
-            datumInfo.serviceFee,
-            datumInfo.minAda,
-            datumInfo.depositAda,
-            datumInfo.version.bytes
+            orderDetails.offeredAssetVal    // offeredAsset
           )
         
         // Construct the Beacon asset
@@ -1186,11 +1141,11 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
         const beaconValue = new Value(BigInt(0), beaconAsset);
 
         // Construct the Seller Token value
-        const sellerToken = [[datumInfo.sellerTokenTN.bytes, BigInt(1)]];
+        const sellerToken = [[swapConfig.sellerTN, BigInt(1)]];
         const sellerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), sellerToken]]);
         const sellerTokenValue = new Value(BigInt(0), sellerTokenAsset);
         
-        const swapValue = (new Value(datumInfo.minAda))
+        const swapValue = (new Value(swapConfig.minAda))
                             .add(orderDetails.offeredAssetVal)
                             .add(beaconValue)
                             .add(sellerTokenValue);
@@ -1208,30 +1163,30 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
             if (orderDetails.noChange) {
                 tx.addOutput(new TxOutput(
                     seller.address,
-                    (new Value(datumInfo.minAda)).add(swapAskedAssetValue)
+                    (new Value(swapConfig.minAda)).add(swapAskedAssetValue)
                 ));
             } else {
                 tx.addOutput(new TxOutput(
                     seller.address,
-                    (new Value(datumInfo.minAda)).add(swapAskedAssetValue.sub(orderDetails.changeAssetVal))
+                    (new Value(swapConfig.minAda)).add(swapAskedAssetValue.sub(orderDetails.changeAssetVal))
                 ));
             }
         } else {
             if (orderDetails.noChange) {
                 tx.addOutput(new TxOutput(
-                    seller.address,
+                    Address.fromHashes(new PubKeyHash(swapConfig.sellerPkh)),
                     swapAskedAssetValue
                 ));
             } else {
                 tx.addOutput(new TxOutput(
-                    seller.address,
+                    Address.fromHashes(new PubKeyHash(swapConfig.sellerPkh)),
                     swapAskedAssetValue.sub(orderDetails.changeAssetVal)
                 ));
             }
         }
 
         // Construct the Buyer Token value
-        const buyerToken = [[textToBytes(buyerTokenTN), BigInt(1)]];
+        const buyerToken = [[buyerTN, BigInt(1)]];
         const buyerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), buyerToken]]);
         const buyerTokenValue = new Value(BigInt(0), buyerTokenAsset);
         
@@ -1240,7 +1195,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
         // Create the output that goes to the buyer
         tx.addOutput(new TxOutput(
             buyer.address,
-            (new Value(datumInfo.minAda)).add(orderDetails.buyAssetVal).add(buyerTokenValue)
+            (new Value(swapConfig.minAda)).add(orderDetails.buyAssetVal).add(buyerTokenValue)
         ));
 
         // Create the output to send to the buyer address for the change
@@ -1249,7 +1204,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
             if (!orderDetails.noChange) {
                 tx.addOutput(new TxOutput(
                     buyer.address,
-                    (new Value(datumInfo.minAda)).add(orderDetails.changeAssetVal)
+                    (new Value(swapConfig.minAda)).add(orderDetails.changeAssetVal)
                 ));
             }
         } else {
@@ -1264,7 +1219,7 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
         // Create the output for the service fee
         tx.addOutput(new TxOutput(
             owner.address,
-            new Value(BigInt(datumInfo.serviceFee))
+            new Value(swapConfig.serviceFee)
         ));
 
         // Construct the time validity interval
@@ -1309,7 +1264,6 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
         console.log("");
         console.log("************ POST-TEST ************");
         await showWalletUTXOs("Buyer", buyer);
-        await showWalletUTXOs("Seller", seller);
         await showWalletUTXOs("Owner", owner);
         await showSwapScriptUTXOs(swapConfig);
         return true;
@@ -1322,10 +1276,14 @@ const assetSwap = async (buyer, seller, swapAskedAssetValue, swapConfig, buyerTo
 
 /**
  * Execute a swap with a given amount using an escrow script
- * @package
- * @param {Value} swapAskedAssetValue
+ * @param {WalletEmulator} buyer
+ * @param {Value} askedAssetValue
+ * @param {Value} offeredAssetValue
+ * @param {SwapConfig} swapConfig
+ * @param {EscrowConfig} escrowConfig
+ * @param {string} buyerTN
  */
-const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, escrowConfig, buyerTokenTN) => {
+const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowConfig, buyerTN) => {
 
     try {
         console.log("");
@@ -1335,7 +1293,6 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         // Tick the network on 10 more slots,
         network.tick(BigInt(10));
         await showWalletUTXOs("Buyer", buyer);
-        await showWalletUTXOs("Seller", seller);
         await showWalletUTXOs("Owner", owner);
         await showSwapScriptUTXOs(swapConfig);
         await showEscrowScriptUTXOs(escrowConfig);
@@ -1354,6 +1311,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+        swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
@@ -1391,9 +1349,9 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         tx.addInput(swapUtxo, swapRedeemer);   
 
         // Add the buyer & sell reference user tokens
-        const buyerRefTokenUtxo = await getRefTokenUTXO(buyer, swapConfig.userTokenMPH, textToBytes(buyerTokenTN), datumInfo.minAda);
+        const buyerRefTokenUtxo = await getRefTokenUTXO(buyer.pubKeyHash.hex, buyerTN, swapConfig);
         tx.addRefInput(buyerRefTokenUtxo);
-        const sellerRefTokenUtxo = await getRefTokenUTXO(seller, swapConfig.userTokenMPH, datumInfo.sellerTokenTN.bytes, datumInfo.minAda);
+        const sellerRefTokenUtxo = await getRefTokenUTXO(swapConfig.sellerPkh, swapConfig.sellerTN, swapConfig);
         tx.addRefInput(sellerRefTokenUtxo);
         
         // Calc the amount of products to buy
@@ -1409,14 +1367,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
             orderDetails.askedAssetVal,     // askedAsset
-            orderDetails.offeredAssetVal,    // offeredAsset
-            datumInfo.escrowEnabled,
-            datumInfo.sellerTokenTN.bytes,
-            datumInfo.sellerPkh.bytes,
-            datumInfo.serviceFee,
-            datumInfo.minAda,
-            datumInfo.depositAda,
-            datumInfo.version.bytes
+            orderDetails.offeredAssetVal    // offeredAsset
           )
 
         // Construct the Beacon asset
@@ -1426,12 +1377,11 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         const beaconValue = new Value(BigInt(0), beaconAsset);
 
         // Construct the Seller Token value
-        console.log("datumInfo.sellerTokenTN.bytes: ", datumInfo.sellerTokenTN.bytes);
-        const sellerToken = [[datumInfo.sellerTokenTN.bytes, BigInt(1)]];
+        const sellerToken = [[swapConfig.sellerTN, BigInt(1)]];
         const sellerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), sellerToken]]);
         const sellerTokenValue = new Value(BigInt(0), sellerTokenAsset);
         
-        const swapValue = (new Value(datumInfo.minAda))
+        const swapValue = (new Value(swapConfig.minAda))
                             .add(orderDetails.offeredAssetVal)
                             .add(beaconValue)
                             .add(sellerTokenValue);
@@ -1446,18 +1396,18 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         ));
 
         // Construct the Buyer Token value
-        const buyerToken = [[textToBytes(buyerTokenTN), BigInt(1)]];
+        const buyerToken = [[buyerTN, BigInt(1)]];
         const buyerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), buyerToken]]);
         const buyerTokenValue = new Value(BigInt(0), buyerTokenAsset);
  
         // Return the buyer token to the buyer
         tx.addOutput(new TxOutput(
             buyer.address,
-            (new Value(datumInfo.minAda)).add(buyerTokenValue)
+            (new Value(swapConfig.minAda)).add(buyerTokenValue)
         ));
 
         // Create deposit value use for escrow
-        const depositVal = new Value(BigInt(datumInfo.depositAda));
+        const depositVal = new Value(BigInt(swapConfig.depositAda));
         
         // Use timestamp for order id for now
         const orderId = Date.now().toString();  
@@ -1472,14 +1422,12 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         // Construct the escrow datum
         const escrowDatum = new (escrowProgram.types.Datum)(
             buyer.pubKeyHash.hex,
-            buyerTokenTN.split("|")[1], 
             depositVal,
             textToBytes(orderId),
             orderVal,
             orderDetails.buyAssetVal,
-            seller.pubKeyHash.hex,
-            bytesToText(datumInfo.sellerTokenTN.bytes).split("|")[1],
-            datumInfo.version.bytes
+            swapConfig.sellerPkh,
+            textToBytes(swapConfig.version)
             )
 
         // Create the output to send the askedAsset to the escrow address
@@ -1488,7 +1436,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
             if (orderDetails.noChange) {
                 tx.addOutput(new TxOutput(
                     Address.fromHashes(escrowCompiledProgram.validatorHash),
-                    (new Value(datumInfo.minAda))
+                    (new Value(swapConfig.minAda))
                         .add(swapAskedAssetValue)
                         .add(depositVal),
                     Datum.inline(escrowDatum._toUplcData()) 
@@ -1496,7 +1444,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
             } else {
                 tx.addOutput(new TxOutput(
                     Address.fromHashes(escrowCompiledProgram.validatorHash),
-                    (new Value(datumInfo.minAda))
+                    (new Value(swapConfig.minAda))
                         .add(swapAskedAssetValue)
                         .sub(orderDetails.changeAssetVal)
                         .add(depositVal),
@@ -1529,7 +1477,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
             if (!orderDetails.noChange) {
                 tx.addOutput(new TxOutput(
                     buyer.address,
-                    (new Value(datumInfo.minAda)).add(orderDetails.changeAssetVal)
+                    (new Value(swapConfig.minAda)).add(orderDetails.changeAssetVal)
                 ));
             }
         } else {
@@ -1544,7 +1492,7 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         // Create the output for the service fee
         tx.addOutput(new TxOutput(
             owner.address,
-            new Value(BigInt(datumInfo.serviceFee))
+            new Value(BigInt(swapConfig.serviceFee))
         ));
 
         // Construct the time validity interval
@@ -1587,7 +1535,6 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
         console.log("");
         console.log("************ POST-TEST ************");
         await showWalletUTXOs("Buyer", buyer);
-        await showWalletUTXOs("Seller", seller);
         await showSwapScriptUTXOs(swapConfig);
         await showEscrowScriptUTXOs(escrowConfig);
         return orderId;
@@ -1600,7 +1547,10 @@ const assetSwapEscrow = async (buyer, seller, swapAskedAssetValue, swapConfig, e
 
 /**
  * Approve and release the order in the escrow smart contract
- * @package
+ * @param {string} orderId
+ * @param {WalletEmulator} buyer
+ * @param {WalletEmulator} seller
+ * @param {EscrowConfig} escrowConfig
  */
 const approveEscrow = async (orderId, buyer, seller, escrowConfig) => {
 
@@ -1760,7 +1710,8 @@ const approveEscrow = async (orderId, buyer, seller, escrowConfig) => {
 
 /**
  * Close a swap position
- * @package
+ * @param {WalletEmulator} seller
+ * @param {SwapConfig} swapConfig
  */
 const closeSwap = async (seller, swapConfig) => {
 
@@ -1782,6 +1733,7 @@ const closeSwap = async (seller, swapConfig) => {
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
         swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+        swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
@@ -1811,7 +1763,7 @@ const closeSwap = async (seller, swapConfig) => {
         const datumInfo = await getSwapDatumInfo(swapUtxo);
 
         // Create the swap redeemer
-        const swapRedeemer = (new swapProgram.types.Redeemer.Close(datumInfo.sellerTokenTN.bytes))._toUplcData();
+        const swapRedeemer = (new swapProgram.types.Redeemer.Close())._toUplcData();
 
         tx.addInput(swapUtxo, swapRedeemer);   
 
@@ -1834,9 +1786,9 @@ const closeSwap = async (seller, swapConfig) => {
         )
 
         // Construct the Seller Token value
-        const sellerToken = [[datumInfo.sellerTokenTN.bytes, BigInt(1)]];
+        const sellerToken = [[swapConfig.sellerTN, BigInt(1)]];
         const sellerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), sellerToken]]);
-        const sellerTokenValue = new Value(datumInfo.minAda, sellerTokenAsset);
+        const sellerTokenValue = new Value(swapConfig.minAda, sellerTokenAsset);
         
         tx.addOutput(new TxOutput(
             seller.address,

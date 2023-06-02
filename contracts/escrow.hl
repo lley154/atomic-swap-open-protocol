@@ -2,13 +2,11 @@ spending escrow
 
 struct Datum {
     buyerPkh: PubKeyHash
-    buyerTokenId: Int
     depositVal: Value
     orderId: ByteArray
     orderVal: Value
     productVal: Value
     sellerPkh: PubKeyHash
-    sellerTokenId: Int
     version: ByteArray
 }
 

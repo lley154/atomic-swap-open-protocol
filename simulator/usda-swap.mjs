@@ -16,10 +16,13 @@ import {
     owner,
     SwapConfig,
     showWalletUTXOs,
+    version,
     updateSwap
 } from "./swap-simulator.mjs"
 
 const minAda = BigInt(3_500_000);
+const serviceFee = BigInt(1_000_000);
+const depositAda = BigInt(0);
 
 // Create seller wallet - we add 10ADA to start
 const seller = network.createWallet(BigInt(15_000_000));
@@ -92,27 +95,27 @@ const askedAssetValue = new Value(BigInt(0), usdaTokenAsset);
 // Create the swap config
 const askedValueInfo = await getMphTnQty(askedAssetValue);
 const offeredValueInfo = await getMphTnQty(offeredAssetValue);
-const swapConfig = new SwapConfig("1.0",                // script version
+const swapConfig = new SwapConfig(version,                // script version
                                   askedValueInfo.mph,
                                   askedValueInfo.tn,
                                   offeredValueInfo.mph,
                                   offeredValueInfo.tn,
                                   beaconMPH.hex,
                                   seller.pubKeyHash.hex,
+                                  sellerToken.tn,
                                   false,                // escrow not enabled
                                   "",                   // escrow address n/a 
                                   sellerToken.mph,
                                   sellerToken.vHash,
-                                  1_000_000,            // 1 Ada service fee
+                                  serviceFee,
                                   owner.pubKeyHash.hex,
                                   minAda, 
-                                  0                     // deposit
+                                  depositAda,
                                   ); 
 
-console.log("usda-swap: sellerToken.tn", sellerToken.tn);
-                                  
+                               
 // Initialize with price of 20 usda tokens with 5 product tokens
-await openSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
+await openSwap(seller, askedAssetValue, offeredAssetValue, swapConfig);   
 
 // Create usda tokens to for updated askedAssets
 const updateUsdaTokenAsset = new Assets();
@@ -134,7 +137,7 @@ updatedOfferedAsset.addComponent(
 const updatedOfferedAssetValue = new Value(BigInt(0), updatedOfferedAsset);
 
 // Change price to 15 USDA and add 5 more product tokens
-await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig); 
+await updateSwap(seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig); 
 
 // Create usda token for swap asset
 const swapUSDATokenAsset = new Assets();
@@ -150,7 +153,7 @@ const swapAskedAssetValue = new Value(minAda, swapUSDATokenAsset);
 const buyerToken = await mintUserTokens(buyer, minAda);
 
 // Swap 50 usda tokens and get as many product tokens as possible
-await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, buyerToken.tn);  
+await assetSwap(buyer, swapAskedAssetValue, swapConfig, buyerToken.tn);  
 
 // Close the swap position
 await closeSwap(seller, swapConfig);

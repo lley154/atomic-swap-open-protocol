@@ -16,10 +16,13 @@ import {
     network,
     SwapConfig,
     showWalletUTXOs,
+    version,
     updateSwap,
 } from "./swap-simulator.mjs"
 
 const minAda = BigInt(3_500_000);
+const serviceFee = BigInt(1_000_000);
+const depositAda = BigInt(0);
 
 // Create seller wallet - we add 10ADA to start
 const seller = network.createWallet(BigInt(15_000_000));
@@ -71,25 +74,26 @@ const offeredAssetValue = new Value(BigInt(0), offeredAsset);
 // Create the swap config
 const askedValueInfo = await getMphTnQty(askedAssetValue);
 const offeredValueInfo = await getMphTnQty(offeredAssetValue);
-const swapConfig = new SwapConfig("1.0",                // script version
+const swapConfig = new SwapConfig(version,                // script version
                                   askedValueInfo.mph,
                                   askedValueInfo.tn,
                                   offeredValueInfo.mph,
                                   offeredValueInfo.tn,
                                   beaconMPH.hex,
                                   seller.pubKeyHash.hex,
+                                  sellerToken.tn,
                                   false,                // escrow not enabled
                                   "",                   // escrow address n/a 
                                   sellerToken.mph,
                                   sellerToken.vHash,
-                                  1_000_000,            // 1 Ada service fee
+                                  serviceFee,          
                                   owner.pubKeyHash.hex,
                                   minAda, 
-                                  0                     // deposit
+                                  depositAda                     
                                   ); 
 
 // Initialize with price of 15 Ada and 5 product tokens
-await openSwap(buyer, seller, askedAssetValue, offeredAssetValue, swapConfig, sellerToken.tn);   
+await openSwap(seller, askedAssetValue, offeredAssetValue, swapConfig);   
 
 // Create the updated asset value being asked for
 const updatedAskedAssetValue = new Value(BigInt(10_000_000));
@@ -104,7 +108,7 @@ updatedOfferedAsset.addComponent(
 const updatedOfferedAssetValue = new Value(BigInt(0), updatedOfferedAsset);
 
 // Change price to 10 Ada and add 5 more product tokens
-await updateSwap(buyer, seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig); 
+await updateSwap(seller, updatedAskedAssetValue, updatedOfferedAssetValue, swapConfig); 
 
 const swapAskedAssetValue = new Value(BigInt(25_000_000));
 
@@ -112,7 +116,7 @@ const swapAskedAssetValue = new Value(BigInt(25_000_000));
 const buyerToken = await mintUserTokens(buyer, minAda);
 
 // Swap 25 Ada and get as many product tokens as possible
-await assetSwap(buyer, seller, swapAskedAssetValue, swapConfig, buyerToken.tn);
+await assetSwap(buyer, swapAskedAssetValue, swapConfig, buyerToken.tn);
 
 // Close the swap position
 await closeSwap(seller, swapConfig);  
