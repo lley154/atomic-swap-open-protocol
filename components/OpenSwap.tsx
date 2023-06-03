@@ -29,7 +29,7 @@ const openSwap = ({ onOpenSwap } : any) => {
             <b>Open Swap</b>
             <hr></hr>
             <div>
-                Asked MPH
+                Asked Asset MPH
                 <br></br>
                 <input name='askedMPH' type='text' id='askedMPH' placeholder='Enter Asked MPH' 
                 value={askedMPH}
@@ -38,7 +38,7 @@ const openSwap = ({ onOpenSwap } : any) => {
                 <p></p>                 
             </div>
             <div>
-                Asked Token Name
+                Asked Asset Name
                 <br></br>
                 <input name='askedTN' type='text' id='askedTN' placeholder='Enter Asked Token Name' 
                 value={askedTN}
@@ -47,7 +47,7 @@ const openSwap = ({ onOpenSwap } : any) => {
                 <p></p>                 
             </div>
             <div>
-                Asked Token Quantity
+                Asked Asset Price
                 <br></br>
                 <input name='askedQty' type='number' id='askedQty' placeholder='Enter Asked Token Quantity' 
                 value={askedQty}
@@ -56,7 +56,7 @@ const openSwap = ({ onOpenSwap } : any) => {
                 <p></p>                 
             </div>
             <div>
-                Offered Token MPH
+                Offered Asset MPH
                 <br></br>
                 <input name='offeredMPH' type='text' id='offeredMPH' placeholder='Enter Offered MPH' 
                 value={offeredMPH}
@@ -65,7 +65,7 @@ const openSwap = ({ onOpenSwap } : any) => {
                 <p></p>                 
             </div>
             <div>
-                Offered Token Name
+                Offered Asset Name
                 <br></br>
                 <input name='offeredTN' type='text' id='offeredTN' placeholder='Enter Offered Token Name' 
                 value={offeredTN}
@@ -74,7 +74,7 @@ const openSwap = ({ onOpenSwap } : any) => {
                 <p></p>                 
             </div>
             <div>
-                Offered Token Quantity
+                Offered Asset Quantity
                 <br></br>
                 <input name='offeredQty' type='number' id='offeredQty' placeholder='Enter Offered Token Quantity' 
                 value={offeredQty}

@@ -5,6 +5,7 @@ import {
     Address,
     Assets,
     Datum,
+    hexToBytes,
     ListData,
     textToBytes,
     TxId,
@@ -23,28 +24,44 @@ export default async function handler(
         const API = new BlockFrostAPI({
             projectId: apiKey
         });
+
+        console.log("getSwapUtxo: swapValidatorAddr", swapValidatorAddr);
+        console.log("getSwapUtxo: unit", unit);
     
         const address = await API.addressesUtxosAsset(swapValidatorAddr, unit);
                                                       
         console.log("address", address);
     
-        let valueAda = new Value(BigInt(address[0].amount[0].quantity));
+        //let valueAda = new Value(BigInt(address[0].amount[0].quantity));
+        var utxoValue = new Value(BigInt(0));
         for (const asset of address[0].amount) {
-            const mph = asset.unit.substring(0,57);
-            const tn = textToBytes(asset.unit.substring(58));
-            const qty = asset.quantity;
-            const valueToken = new Value(BigInt(0), new Assets([[mph, [[tn, BigInt(qty)]]]]));
-            valueAda.add(valueToken);
+            const mph = asset.unit.substring(0,56);
+            if (mph === "lovelace") {
+                //const mph_lovelace = "";
+                //const tn = "";
+                console.log("lovelace");
+                //const qty = asset.quantity;
+                const assetValue = new Value(BigInt(asset.quantity));
+                utxoValue = utxoValue.add(assetValue);
+                //console.log("utxoValue: ", utxoValue.toSchemaJson());
+            } else {
+                const tn = hexToBytes(asset.unit.substring(56));
+                console.log("tn: ", tn);
+                //const qty = asset.quantity;
+                const assetValue = new Value(BigInt(0), new Assets([[mph, [[tn, BigInt(asset.quantity)]]]]));
+                utxoValue = utxoValue.add(assetValue);
+                //console.log("assetValue: ", assetValue.toSchemaJson());
+            }
+            
         }
-        console.log("value", valueAda);
-    
+        console.log("utxoValue: ", utxoValue.toSchemaJson());
         const utxo = new UTxO(
             TxId.fromHex(address[0].tx_hash),
             BigInt(address[0].output_index),
             new TxOutput(
               Address.fromBech32(swapValidatorAddr),
-              valueAda,
-              Datum.inline(ListData.fromCbor(textToBytes(address[0].inline_datum!)))
+              utxoValue,
+              Datum.inline(ListData.fromCbor(hexToBytes(address[0].inline_datum!)))
             )
         );
         return utxo;

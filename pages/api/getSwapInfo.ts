@@ -28,15 +28,7 @@ export default async function handler(
         const address = await API.assetsAddresses(beacon);
         const utxo = await API.addressesUtxosAsset(address[0].address, beacon);
         const metaData = (await API.txsMetadata(utxo[0].tx_hash))[0].json_metadata;
-        console.log("getSwapInfo: metaData[0].json_metadata: ", metaData);
-        //console.log("getSwapInfo: metaData[0].json_metadata: ", JSON.stringify(metaData));
-        
         const metaDataObj = JSON.parse((JSON.stringify(metaData)));
-        //console.log("mph", mph);
-        //console.log("tn", tn);
-        //console.log("getSwapInfo: metaData[0].json_metadata: test: ", test);
-        //console.log("getSwapInfo: metaData[0].json_metadata: test[mph]: ", test[mph][tn]);
-        //console.log("getSwapInfo: metaData[0].json_metadata: test[mph]: version: ", test[mph][tn]['VERSION']);
         const inlineDatum = utxo[0].inline_datum!;
         const datum = ListData.fromCbor(hexToBytes(inlineDatum));
         console.log("getSwapInfo: datum: ", datum.toSchemaJson());
@@ -50,7 +42,8 @@ export default async function handler(
 
         if (askedAssetValue.lovelace > 0) {
             askedAssetPrice = Number(askedAssetValue.lovelace);
-            askedAssetTN = "lovelace";
+            //askedAssetTN = Buffer.from("lovelace", "utf8").toString("hex");
+            //askedAssetTN = "lovelace";
         } else {
 
             const askedAsset = askedAssetValue.assets.dump();
@@ -61,7 +54,7 @@ export default async function handler(
                     console.log("asked token qty: ", tokenQty);
 
                     askedAssetMPH = keyMph;
-                    askedAssetTN = tokenName;
+                    askedAssetTN = Buffer.from(tokenName, "hex").toString("utf8");
                     askedAssetPrice = tokenQty as number;
 
                     arr.length = index + 1; // there will only be 1 token, so break
@@ -76,18 +69,19 @@ export default async function handler(
 
         if (offeredAssetValue.lovelace > 0) {
             offeredAssetQty = Number(offeredAssetValue.lovelace);
-            offeredAssetTN = "lovelace";
+            //offeredAssetTN = Buffer.from("lovelace", "utf8").toString("hex");
+            //offeredAssetTN = "lovelace";
         } else {
 
             const offeredAsset = offeredAssetValue.assets.dump();
             Object.entries(offeredAsset).forEach(([keyMph, valueMph], index, arr) => {
                 Object.entries(valueMph as {}).forEach(([tokenName, tokenQty], index, arr) => {
                     console.log("offered mph: ", keyMph);
-                    console.log("offered token name: ", bytesToText(hexToBytes(tokenName)));
+                    console.log("offered token name: ", tokenName);
                     console.log("offered token qty: ", tokenQty);
 
                     offeredAssetMPH = keyMph;
-                    offeredAssetTN = tokenName;
+                    offeredAssetTN  = Buffer.from(tokenName, "hex").toString("utf8");
                     offeredAssetQty = tokenQty as number;
 
                     arr.length = index + 1; // there will only be 1 token, so break
@@ -103,13 +97,16 @@ export default async function handler(
         const serviceFee = metaDataObj[mph][tn]['SERVICE_FEE'];
         const sellerTN = metaDataObj[mph][tn]['SELLER_TN'];
         const sellerPkh = metaDataObj[mph][tn]['SELLER_PKH'];
+        const userTokenMph = metaDataObj[mph][tn]['USER_TOKEN_MPH'];
+        const userTokenValHash = metaDataObj[mph][tn]['USER_TOKEN_VHASH'];
         const minAda = metaDataObj[mph][tn]['MIN_ADA'];
         const ownerPkh = metaDataObj[mph][tn]['OWNER_PKH'];
         const depositAda = metaDataObj[mph][tn]['DEPOSIT_ADA'];
         const version = metaDataObj[mph][tn]['VERSION'];
 
         const swapInfo = new SwapInfo(
-            beacon,
+            mph,
+            tn,
             address[0].address,
             askedAssetMPH,
             askedAssetTN,
@@ -121,6 +118,8 @@ export default async function handler(
             escrowHash,
             sellerTN,
             sellerPkh,
+            userTokenMph,
+            userTokenValHash,
             serviceFee,
             ownerPkh,
             minAda,

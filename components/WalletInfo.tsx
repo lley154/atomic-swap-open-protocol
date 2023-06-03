@@ -15,7 +15,7 @@ const Item = ({ mph, tn, qty} : any) => {
 
 const WalletInfo = ({ walletInfo } : any) => {
 
-    console.log("walletInfo: ", walletInfo);
+    //console.log("walletInfo: ", walletInfo);
 
     return (
         <div style={{ width: '100%'}}>
