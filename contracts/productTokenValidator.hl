@@ -5,14 +5,14 @@ enum Redeemer {
 }
 
 struct Datum {
-    userPkh: PubKeyHash
+    userPKH: PubKeyHash
 }
 
 // Contract parameters 
 const VERSION: ByteArray = #
 const SELLER_PKH: ByteArray = #
 const OWNER_PKH: ByteArray = #
-const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 const PRODUCT_ID: ByteArray = #
 
 

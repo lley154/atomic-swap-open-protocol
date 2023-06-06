@@ -88,14 +88,14 @@ class SwapConfig {
                 offeredMPH, 
                 offeredTN, 
                 beaconMPH,  
-                sellerPkh,
+                sellerPKH,
                 sellerTN,
                 escrowEnabled,
                 escrowHash,
                 userTokenMPH,
                 userTokenVHash,
                 serviceFee,
-                ownerPkh,
+                ownerPKH,
                 minAda,
                 depositAda) {
       this.version = version;
@@ -104,14 +104,14 @@ class SwapConfig {
       this.offeredMPH = offeredMPH;
       this.offeredTN = offeredTN;
       this.beaconMPH = beaconMPH;
-      this.sellerPkh = sellerPkh;
+      this.sellerPKH = sellerPKH;
       this.sellerTN = sellerTN;
       this.escrowEnabled = escrowEnabled;
       this.escrowHash = escrowHash;
       this.userTokenMPH = userTokenMPH;
       this.userTokenVHash = userTokenVHash;
       this.serviceFee = serviceFee;
-      this.ownerPkh = ownerPkh;
+      this.ownerPKH = ownerPKH;
       this.minAda = minAda;
       this.depositAda = depositAda;
     }
@@ -125,10 +125,10 @@ const escrowProgram = Program.new(escrowScript);
 // an escrow script address for a given buyer pkh, seller pkh 
 // and the owner pkh.
 class EscrowConfig {
-    constructor(version, sellerPkh, ownerPkh) {
+    constructor(version, sellerPKH, ownerPKH) {
         this.version = version;
-        this.sellerPkh = sellerPkh;
-        this.ownerPkh = ownerPkh;
+        this.sellerPKH = sellerPKH;
+        this.ownerPKH = ownerPKH;
     }
 }
 
@@ -214,14 +214,14 @@ const showSwapScriptUTXOs = async (swapConfig) => {
     swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
     swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
     swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-    swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+    swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
     swapProgram.parameters = {["SELLER_TN"] : textToBytes(swapConfig.sellerTN)};
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
     swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
     swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
     swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
-    swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
+    swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPKH};
     swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
     swapProgram.parameters = {["DEPOSIT_ADA"] : swapConfig.depositAda};
     const swapCompiledProgram = swapProgram.compile(optimize);
@@ -249,8 +249,8 @@ const showSwapScriptUTXOs = async (swapConfig) => {
 const showEscrowScriptUTXOs = async (escrowConfig) => {
 
     escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
-    escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
-    escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
+    escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
+    escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPKH};
     const escrowCompiledProgram = escrowProgram.compile(optimize);
 
     const escrowUtxos = await network.getUtxos(Address.fromHashes(escrowCompiledProgram.validatorHash));
@@ -300,14 +300,14 @@ const getSwapUTXO = async (swapConfig) => {
     swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
     swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
     swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-    swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+    swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
     swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
     swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
     swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
     swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
     swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
     swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
-    swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
+    swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPKH};
     swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
     swapProgram.parameters = {["DEPOSIT_ADA"] : swapConfig.depositAda};
     const swapCompiledProgram = swapProgram.compile(optimize);
@@ -326,25 +326,25 @@ const getSwapUTXO = async (swapConfig) => {
 /**
  * Get the UTXO at the escrow address
  * @param {PubKeyHash} buyerPkh
- * @param {PubKeyHash} sellerPkh
+ * @param {PubKeyHash} sellerPKH
  * @param {string} orderId 
  * @returns {UTxO}
  */
-const getEscrowUTXO = async (orderId, buyerPkh, sellerPkh, escrowConfig) => {
+const getEscrowUTXO = async (orderId, buyerPkh, sellerPKH, escrowConfig) => {
 
     console.log("getEscrowUTXO: ", escrowConfig);
     escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
-    escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
-    escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
+    escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
+    escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPKH};
     
     const escrowCompiledProgram = escrowProgram.compile(optimize);
     const escrowUtxos = await network.getUtxos(Address.fromHashes(escrowCompiledProgram.validatorHash));
     for (const utxo of escrowUtxos) {
 
-        // only one UTXO with orderId, buyerPkh & sellerPkh should exist
+        // only one UTXO with orderId, buyerPkh & sellerPKH should exist
         if (bytesToText(utxo.origOutput.datum.data.list[2].bytes) === orderId &&
             PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[0]).hex === buyerPkh.hex &&
-            PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[5]).hex === sellerPkh.hex) { 
+            PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[5]).hex === sellerPKH.hex) { 
             console.log("");
             console.log("getEscrowUTXO: UTXO with order found");
             return utxo;
@@ -367,7 +367,7 @@ const getRefTokenUTXO = async (userPkh, userTokenTN, swapConfig) => {
     // Compile the user token validator script
     userTokenValProgram.parameters = {["VERSION"] : swapConfig.version};
     userTokenValProgram.parameters = {["USER_PKH"] : userPkh};
-    userTokenValProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
+    userTokenValProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPKH};
     
     const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
     const userTokenValHash = userTokenValCompiledProgram.validatorHash;
@@ -465,7 +465,7 @@ const calcOrderDetails = async (utxo, swapAskedAssetValue) => {
     // Check if the offeredAsset is lovelace
     if (offeredAssetMP.length == 0) {
         offeredAssetMPH = offeredAssetValue.assets.mintingPolicies;
-        offeredAssetTN = offeredAssetValue.assets.getTokenNames(askedAssetMPH);
+        offeredAssetTN = offeredAssetValue.assets.getTokenNames(offeredAssetMPH);
         offeredAssetQty = offeredAssetValue.lovelace;
     } else { 
         // The offeredAsset is a native token and should only contain 1 MPH
@@ -483,7 +483,7 @@ const calcOrderDetails = async (utxo, swapAskedAssetValue) => {
     // Check if the swapAskedAsset is lovelace
     if (swapAskedAssetMP.length == 0) {
         swapAskedAssetMPH = swapAskedAssetValue.assets.mintingPolicies;
-        swapAskedAssetTN = swapAskedAssetValue.assets.getTokenNames(askedAssetMPH);
+        swapAskedAssetTN = swapAskedAssetValue.assets.getTokenNames(swapAskedAssetMPH);
         swapAskedAssetQty = swapAskedAssetValue.lovelace;
     } else { 
         // The swapAskedAsset is a native token and should only contain 1 MPH
@@ -611,7 +611,7 @@ const getSwapDatumInfo = async (utxo) => {
  *              orderId: ByteArray,
  *              orderVal: Value,
  *              productVal: Value,
- *              sellerPkh: PubKeyHash}} 
+ *              sellerPKH: PubKeyHash}} 
  */
 const getEscrowDatumInfo = async (utxo) => {
 
@@ -622,7 +622,7 @@ const getEscrowDatumInfo = async (utxo) => {
         orderId: utxo.origOutput.datum.data.list[2].bytes,
         orderVal: Value.fromUplcData(utxo.origOutput.datum.data.list[3]),
         productVal: Value.fromUplcData(utxo.origOutput.datum.data.list[4]),
-        sellerPkh: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[5]),
+        sellerPKH: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[5]),
         version: utxo.origOutput.datum.data.list[6]
     }
     return datumInfo
@@ -791,14 +791,14 @@ const openSwap = async (seller, askedAssetValue, offeredAssetValue, swapConfig) 
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
         swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
         swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
-        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPKH};
         swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
         swapProgram.parameters = {["DEPOSIT_ADA"] : swapConfig.depositAda};
         const swapCompiledProgram = swapProgram.compile(optimize);  
@@ -932,14 +932,14 @@ const updateSwap = async (seller, askedAssetValue, offeredAssetValue, swapConfig
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
         swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
         swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
-        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPKH};
         swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
         swapProgram.parameters = {["DEPOSIT_ADA"] : swapConfig.depositAda};
         const swapCompiledProgram = swapProgram.compile(optimize);  
@@ -1078,14 +1078,14 @@ const assetSwap = async (buyer, swapAskedAssetValue, swapConfig, buyerTN) => {
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
         swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
         swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
-        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPKH};
         swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
         swapProgram.parameters = {["DEPOSIT_ADA"] : swapConfig.depositAda};
         const swapCompiledProgram = swapProgram.compile(optimize); 
@@ -1116,7 +1116,7 @@ const assetSwap = async (buyer, swapAskedAssetValue, swapConfig, buyerTN) => {
         // Add the buyer & sell reference user tokens
         const buyerRefTokenUtxo = await getRefTokenUTXO(buyer.pubKeyHash.hex, buyerTN, swapConfig);
         tx.addRefInput(buyerRefTokenUtxo);
-        const sellerRefTokenUtxo = await getRefTokenUTXO(swapConfig.sellerPkh, swapConfig.sellerTN, swapConfig);
+        const sellerRefTokenUtxo = await getRefTokenUTXO(swapConfig.sellerPKH, swapConfig.sellerTN, swapConfig);
         tx.addRefInput(sellerRefTokenUtxo);
         
         // Calc the amount of products remaining
@@ -1174,12 +1174,12 @@ const assetSwap = async (buyer, swapAskedAssetValue, swapConfig, buyerTN) => {
         } else {
             if (orderDetails.noChange) {
                 tx.addOutput(new TxOutput(
-                    Address.fromHashes(new PubKeyHash(swapConfig.sellerPkh)),
+                    Address.fromHashes(new PubKeyHash(swapConfig.sellerPKH)),
                     swapAskedAssetValue
                 ));
             } else {
                 tx.addOutput(new TxOutput(
-                    Address.fromHashes(new PubKeyHash(swapConfig.sellerPkh)),
+                    Address.fromHashes(new PubKeyHash(swapConfig.sellerPKH)),
                     swapAskedAssetValue.sub(orderDetails.changeAssetVal)
                 ));
             }
@@ -1299,8 +1299,8 @@ const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowCon
 
         // Compile the escrow script script
         escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
-        escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
-        escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
+        escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
+        escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPKH};
         const escrowCompiledProgram = escrowProgram.compile(optimize);
 
         // Compile the swap script
@@ -1310,14 +1310,14 @@ const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowCon
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
         swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
         swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
-        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPKH};
         swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
         swapProgram.parameters = {["DEPOSIT_ADA"] : swapConfig.depositAda};
         const swapCompiledProgram = swapProgram.compile(optimize); 
@@ -1351,7 +1351,7 @@ const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowCon
         // Add the buyer & sell reference user tokens
         const buyerRefTokenUtxo = await getRefTokenUTXO(buyer.pubKeyHash.hex, buyerTN, swapConfig);
         tx.addRefInput(buyerRefTokenUtxo);
-        const sellerRefTokenUtxo = await getRefTokenUTXO(swapConfig.sellerPkh, swapConfig.sellerTN, swapConfig);
+        const sellerRefTokenUtxo = await getRefTokenUTXO(swapConfig.sellerPKH, swapConfig.sellerTN, swapConfig);
         tx.addRefInput(sellerRefTokenUtxo);
         
         // Calc the amount of products to buy
@@ -1426,7 +1426,7 @@ const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowCon
             textToBytes(orderId),
             orderVal,
             orderDetails.buyAssetVal,
-            swapConfig.sellerPkh,
+            swapConfig.sellerPKH,
             textToBytes(swapConfig.version)
             )
 
@@ -1566,8 +1566,8 @@ const approveEscrow = async (orderId, buyer, seller, escrowConfig) => {
         await showEscrowScriptUTXOs(escrowConfig);
 
         escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
-        escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
-        escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
+        escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
+        escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPKH};
         const escrowCompiledProgram = escrowProgram.compile(optimize);
 
         // Get the UTxOs in Seller and Buyer Wallet
@@ -1732,14 +1732,14 @@ const closeSwap = async (seller, swapConfig) => {
         swapProgram.parameters = {["OFFERED_MPH"] : swapConfig.offeredMPH};
         swapProgram.parameters = {["OFFERED_TN"] : swapConfig.offeredTN};
         swapProgram.parameters = {["BEACON_MPH"] : swapConfig.beaconMPH};
-        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPkh};
+        swapProgram.parameters = {["SELLER_PKH"] : swapConfig.sellerPKH};
         swapProgram.parameters = {["SELLER_TN"] : swapConfig.sellerTN};
         swapProgram.parameters = {["ESCROW_ENABLED"] : swapConfig.escrowEnabled};
         swapProgram.parameters = {["ESCROW_HASH"] : swapConfig.escrowHash};
         swapProgram.parameters = {["USER_TOKEN_MPH"] : swapConfig.userTokenMPH};
         swapProgram.parameters = {["USER_TOKEN_VHASH"] : swapConfig.userTokenVHash};
         swapProgram.parameters = {["SERVICE_FEE"] : swapConfig.serviceFee};
-        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPkh};
+        swapProgram.parameters = {["OWNER_PKH"] : swapConfig.ownerPKH};
         swapProgram.parameters = {["MIN_ADA"] : swapConfig.minAda};
         swapProgram.parameters = {["DEPOSIT_ADA"] : swapConfig.depositAda};
         const swapCompiledProgram = swapProgram.compile(optimize); 

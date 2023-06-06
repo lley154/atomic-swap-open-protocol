@@ -8,13 +8,13 @@ enum Redeemer {
 // Contract parameters 
 const VERSION: ByteArray = # 
 const OWNER_PKH: ByteArray = #
-const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
 func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
     redeemer.switch {
         Mint => {
-            ctx.tx.is_signed_by(ownerPkh).trace("RP1: ")
+            ctx.tx.is_signed_by(ownerPKH).trace("RP1: ")
         },
         Burn => {
             true

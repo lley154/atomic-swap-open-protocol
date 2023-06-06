@@ -1,6 +1,11 @@
+export { SwapInfo }
+
+/**
+ * SwapInfo class to capture all of the script parameters related to a swap
+ */
 
 export default class SwapInfo {
-    public beaconMph : string
+    public beaconMPH : string
     public beaconTN : string
     public address : string
     public askedAssetMPH : string
@@ -11,17 +16,41 @@ export default class SwapInfo {
     public offeredAssetQty : number
     public escrowEnabled : boolean
     public escrowValHash : string
-    public sellerTN : string
-    public sellerPkh : string
-    public userTokenMph : string
+    public sellerTokenTN : string
+    public sellerPKH : string
+    public userTokenMPH : string
     public userTokenValHash: string
     public serviceFee : number
-    public ownerPkh : string
+    public ownerPKH : string
     public minAda : number
     public depositAda : number
     public version : string
 
-    constructor(beaconMph : string,
+    /**
+     * Create SwapInfo
+     * @param {string} beaconMPH
+     * @param {string} beaconTN
+     * @param {string} address
+     * @param {string} askedAssetMPH
+     * @param {string} askedAssetTN
+     * @param {string} askedAssetPrice
+     * @param {string} offeredAssetMPH
+     * @param {string} offeredAssetTN
+     * @param {string} offeredAssetQty
+     * @param {string} escrowEnabled
+     * @param {string} escrowValHash
+     * @param {string} sellerTokenTN
+     * @param {string} sellerPKH
+     * @param {string} userTokenMPH
+     * @param {string} userTokenValHash
+     * @param {string} serviceFee
+     * @param {string} ownerPKH
+     * @param {string} minAda
+     * @param {string} version
+     * 
+     */
+
+    constructor(beaconMPH : string,
                 beaconTN : string,
                 address : string,
                 askedAssetMPH : string,
@@ -32,16 +61,16 @@ export default class SwapInfo {
                 offeredAssetQty : number,
                 escrowEnabled : boolean,
                 escrowValHash : string,
-                sellerTN : string,
-                sellerPkh : string,
-                userTokenMph : string,
+                sellerTokenTN : string,
+                sellerPKH : string,
+                userTokenMPH : string,
                 userTokenValHash : string,
                 serviceFee : number,
-                ownerPkh : string,
-                minada : number,
+                ownerPKH : string,
+                minAda : number,
                 depositAda : number,
                 version : string) {
-        this.beaconMph = beaconMph;
+        this.beaconMPH = beaconMPH;
         this.beaconTN = beaconTN;
         this.address = address;
         this.askedAssetMPH = askedAssetMPH;
@@ -52,13 +81,13 @@ export default class SwapInfo {
         this.offeredAssetQty = offeredAssetQty;
         this.escrowEnabled = escrowEnabled;
         this.escrowValHash = escrowValHash;
-        this.sellerTN = sellerTN;
-        this.sellerPkh = sellerPkh;
-        this.userTokenMph = userTokenMph;
+        this.sellerTokenTN = sellerTokenTN;
+        this.sellerPKH = sellerPKH;
+        this.userTokenMPH = userTokenMPH;
         this.userTokenValHash = userTokenValHash;
         this.serviceFee = serviceFee;
-        this.ownerPkh = ownerPkh;
-        this.minAda = minada;
+        this.ownerPKH = ownerPKH;
+        this.minAda = minAda;
         this.depositAda = depositAda;
         this.version = version;
     }

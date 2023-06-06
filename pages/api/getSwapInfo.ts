@@ -95,12 +95,12 @@ export default async function handler(
         const escrowHash = metaDataObj[mph][tn]['ESCROW_HASH'];
         const escrowEnabled = metaDataObj[mph][tn]['ESCROW_ENABLED']
         const serviceFee = metaDataObj[mph][tn]['SERVICE_FEE'];
-        const sellerTN = metaDataObj[mph][tn]['SELLER_TN'];
-        const sellerPkh = metaDataObj[mph][tn]['SELLER_PKH'];
-        const userTokenMph = metaDataObj[mph][tn]['USER_TOKEN_MPH'];
+        const sellerTokenTN = metaDataObj[mph][tn]['SELLER_TN'];
+        const sellerPKH = metaDataObj[mph][tn]['SELLER_PKH'];
+        const userTokenMPH = metaDataObj[mph][tn]['USER_TOKEN_MPH'];
         const userTokenValHash = metaDataObj[mph][tn]['USER_TOKEN_VHASH'];
         const minAda = metaDataObj[mph][tn]['MIN_ADA'];
-        const ownerPkh = metaDataObj[mph][tn]['OWNER_PKH'];
+        const ownerPKH = metaDataObj[mph][tn]['OWNER_PKH'];
         const depositAda = metaDataObj[mph][tn]['DEPOSIT_ADA'];
         const version = metaDataObj[mph][tn]['VERSION'];
 
@@ -116,12 +116,12 @@ export default async function handler(
             offeredAssetQty,
             (escrowEnabled === "true"),
             escrowHash,
-            sellerTN,
-            sellerPkh,
-            userTokenMph,
+            sellerTokenTN,
+            sellerPKH,
+            userTokenMPH,
             userTokenValHash,
             serviceFee,
-            ownerPkh,
+            ownerPKH,
             minAda,
             depositAda,
             version

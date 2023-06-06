@@ -16,12 +16,12 @@ const SwapInfo = ({ swapInfo } : any) => {
                 <tr><td>Offered Asset Minting Policy Hash</td><td>{swapInfo.offeredAssetMPH}</td></tr>
                 <tr><td>Offered Asset Token Name</td><td>{swapInfo.offeredAssetTN === "" ? "lovelace" : swapInfo.offeredAssetTN}</td></tr>
                 <tr><td>Offered Asset Quantity</td><td>{swapInfo.offeredAssetQty}</td></tr>
-                <tr><td>Seller Token</td><td>{swapInfo.sellerTN}</td></tr>
-                <tr><td>Seller PKH</td><td>{swapInfo.sellerPkh}</td></tr>
-                <tr><td>Owner PKH</td><td>{swapInfo.ownerPkh}</td></tr>
+                <tr><td>Seller Token</td><td>{swapInfo.sellerTokenTN}</td></tr>
+                <tr><td>Seller PKH</td><td>{swapInfo.sellerPKH}</td></tr>
+                <tr><td>Owner PKH</td><td>{swapInfo.ownerPKH}</td></tr>
                 <tr><td>Escrow Enabled</td><td>{swapInfo.escrowEnabled.toString()}</td></tr>
                 <tr><td>Escrow Validator Hash</td><td>{swapInfo.EscrowValHash}</td></tr>
-                <tr><td>User Token MPH</td><td>{swapInfo.userTokenMph}</td></tr>
+                <tr><td>User Token MPH</td><td>{swapInfo.userTokenMPH}</td></tr>
                 <tr><td>User Token Validator Hash</td><td>{swapInfo.userTokenValHash}</td></tr>
                 <tr><td>Min Ada</td><td>{swapInfo.minAda}</td></tr>
                 <tr><td>Deposit Ada</td><td>{swapInfo.depositAda}</td></tr>

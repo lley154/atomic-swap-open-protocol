@@ -17,7 +17,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse ) {
 
-    const getSwapUtxo = async (swapValidatorAddr : string, unit : string) : Promise<UTxO> => {
+    const getRefUtxo = async (refValidatorAddr : string) : Promise<UTxO> => {
 
         const apiKey : string = process.env.NEXT_PUBLIC_BLOCKFROST_API_KEY as string;
     
@@ -25,36 +25,27 @@ export default async function handler(
             projectId: apiKey
         });
 
-        console.log("getSwapUtxo: swapValidatorAddr", swapValidatorAddr);
-        console.log("getSwapUtxo: unit", unit);
+        console.log("getRefUtxo: ", refValidatorAddr);
     
-        const address = await API.addressesUtxosAsset(swapValidatorAddr, unit);
+        const address = await API.addressesUtxos(refValidatorAddr);
                                                       
-        console.log("address", address);
-
+        console.log("getRefUtxo: address: ", address);
         if (address.length != 1) {
-            throw console.error("getSwapUtxo: incorrect amount of swap utxos");
+            throw console.error("getRefUtxo: incorrect amount of reference utxos");
         }
-    
-        //let valueAda = new Value(BigInt(address[0].amount[0].quantity));
+        
         var utxoValue = new Value(BigInt(0));
         for (const asset of address[0].amount) {
             const mph = asset.unit.substring(0,56);
             if (mph === "lovelace") {
-                //const mph_lovelace = "";
-                //const tn = "";
                 console.log("lovelace");
-                //const qty = asset.quantity;
                 const assetValue = new Value(BigInt(asset.quantity));
                 utxoValue = utxoValue.add(assetValue);
-                //console.log("utxoValue: ", utxoValue.toSchemaJson());
             } else {
                 const tn = hexToBytes(asset.unit.substring(56));
                 console.log("tn: ", tn);
-                //const qty = asset.quantity;
                 const assetValue = new Value(BigInt(0), new Assets([[mph, [[tn, BigInt(asset.quantity)]]]]));
                 utxoValue = utxoValue.add(assetValue);
-                //console.log("assetValue: ", assetValue.toSchemaJson());
             }
             
         }
@@ -63,7 +54,7 @@ export default async function handler(
             TxId.fromHex(address[0].tx_hash),
             BigInt(address[0].output_index),
             new TxOutput(
-              Address.fromBech32(swapValidatorAddr),
+              Address.fromBech32(refValidatorAddr),
               utxoValue,
               Datum.inline(ListData.fromCbor(hexToBytes(address[0].inline_datum!)))
             )
@@ -73,11 +64,11 @@ export default async function handler(
 
     try {
         // TODO - sanitize inputs
-        const utxo = await getSwapUtxo(req.body.addr, req.body.unit)
+        const utxo = await getRefUtxo(req.body.addr)
         console.log("utxo", utxo.toCbor());
         res.status(200).send(utxo.toCbor());
     }
     catch (err) {
-        res.status(500).json("getSwapUtxo API error: " + err);
+        res.status(500).json("getRefUtxo API error: " + err);
     }
 }

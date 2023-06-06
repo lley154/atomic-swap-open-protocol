@@ -102,8 +102,8 @@ const escrowConfig = new EscrowConfig(version,
 
 // Create the escrow config parameters
 escrowProgram.parameters = {["VERSION"] : escrowConfig.version};
-escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPkh};
-escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPkh};
+escrowProgram.parameters = {["SELLER_PKH"] : escrowConfig.sellerPKH};
+escrowProgram.parameters = {["OWNER_PKH"] : escrowConfig.ownerPKH};
 const escrowCompiledProgram = escrowProgram.compile(optimize);
 
 // Create the swap config parameters

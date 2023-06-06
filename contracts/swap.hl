@@ -6,7 +6,7 @@ struct Datum {
 }
 
 struct TokenDatum {
-    userPkh: PubKeyHash
+    userPKH: PubKeyHash
 }
 
 enum Redeemer {
@@ -24,18 +24,18 @@ const ASKED_TN: ByteArray = #
 const OFFERED_MPH: ByteArray = #
 const OFFERED_TN: ByteArray = #
 const BEACON_MPH: ByteArray = #
-const beaconMph: MintingPolicyHash = MintingPolicyHash::new(BEACON_MPH)
+const beaconMPH: MintingPolicyHash = MintingPolicyHash::new(BEACON_MPH)
 const SELLER_PKH: ByteArray = #
 const SELLER_TN: ByteArray = #
-const sellerPkh: PubKeyHash = PubKeyHash::new(SELLER_PKH)
+const sellerPKH: PubKeyHash = PubKeyHash::new(SELLER_PKH)
 const ESCROW_ENABLED: Bool = false
 const ESCROW_HASH: ByteArray = #
 const USER_TOKEN_MPH: ByteArray = #
-const userTokenMph: MintingPolicyHash = MintingPolicyHash::new(USER_TOKEN_MPH)
+const userTokenMPH: MintingPolicyHash = MintingPolicyHash::new(USER_TOKEN_MPH)
 const USER_TOKEN_VHASH: ByteArray = #
 const SERVICE_FEE: Int = 0
 const OWNER_PKH: ByteArray = #
-const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 const MIN_ADA: Int = 2_500_000
 const minAdaVal: Value = Value::lovelace(MIN_ADA)
 const DEPOSIT_ADA: Int = 0
@@ -58,7 +58,7 @@ func getUserPkh(userTokenVal: Value, txRefInputs: []TxInput) -> Option[PubKeyHas
             txRefInputs.head.output.datum.switch {
                 refTokenDatum: Inline => {
                     refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
-                    Option[PubKeyHash]::Some{refTokenData.userPkh}
+                    Option[PubKeyHash]::Some{refTokenData.userPKH}
                 },
                 else => Option[PubKeyHash]::None // no reference inline datum
             }
@@ -79,7 +79,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     
     // Calculate the beacon token
     beaconAssetclass: AssetClass = AssetClass::new(
-        beaconMph, 
+        beaconMPH, 
         beaconTN
     );
     beaconVal : Value = Value::new(beaconAssetclass, 1);
@@ -103,7 +103,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
     // Create seller token that will be sent back to the seller
     sellerTokenAssetclass: AssetClass = AssetClass::new(
-        userTokenMph, 
+        userTokenMPH, 
         SELLER_TN
     );
     sellerTokenVal : Value = Value::new(sellerTokenAssetclass, 1);
@@ -115,27 +115,27 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             beaconTokenBurnVal: Value = Value::new(beaconAssetclass, (-1));
 
             (txOutputsContract.length == 0).trace("SV1.1: ") &&
-            tx.is_signed_by(sellerPkh).trace("SV1.2: ") &&
+            tx.is_signed_by(sellerPKH).trace("SV1.2: ") &&
             (tx.minted == beaconTokenBurnVal).trace("SV1.3: ") &&
-            (tx.value_sent_to(sellerPkh).contains(sellerTokenVal)).trace("SV1.4: ")
+            (tx.value_sent_to(sellerPKH).contains(sellerTokenVal)).trace("SV1.4: ")
         },
         red: Swap => { 
 
             txRefInputs : []TxInput = tx.ref_inputs;
             txOutputsBuyer : []TxOutput = tx.outputs_sent_to(red.buyerPkh);
-            txOutputsOwner : []TxOutput = tx.outputs_sent_to(ownerPkh);
+            txOutputsOwner : []TxOutput = tx.outputs_sent_to(ownerPKH);
             if (txOutputsContract.length == 1 && txOutputsBuyer.length >= 1) {
 
                 // Pull out the seller token value 
-                //sellerToken: Map[ByteArray]Int = txOutputsContract.head.value.get_policy(userTokenMph);   
+                //sellerToken: Map[ByteArray]Int = txOutputsContract.head.value.get_policy(userTokenMPH);   
                 //sellerTokenTN: String = (sellerToken.head_key).slice(0,56).decode_utf8();
-                //sellerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMph: sellerToken};
+                //sellerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMPH: sellerToken};
                 //sellerTokenVal = Value::from_map(sellerTokenMap);
                 
                 // Pull out the buyer token value
-                buyerToken: Map[ByteArray]Int = txOutputsBuyer.head.value.get_policy(userTokenMph);   
+                buyerToken: Map[ByteArray]Int = txOutputsBuyer.head.value.get_policy(userTokenMPH);   
                 //buyerTN: String = (buyerToken.head_key).slice(0,56).decode_utf8();
-                buyerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMph: buyerToken};
+                buyerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMPH: buyerToken};
                 buyerTokenVal = Value::from_map(buyerTokenMap);
              
                 txOutputsContract.head.datum.switch {
@@ -160,8 +160,8 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                             else => { false.trace("SV2.5: ") } // could not find user pkh
                         } &&
                         getUserPkh(sellerTokenVal, txRefInputs).switch {
-                            sellerPkhLookup : Some => {
-                                (sellerPkh == sellerPkhLookup.some).trace("SV2.6: ") 
+                            sellerPKHLookup : Some => {
+                                (sellerPKH == sellerPKHLookup.some).trace("SV2.6: ") 
                             }, 
                             else => { false.trace("SV2.7: ") } // could not find user pkh
                         } &&
@@ -182,7 +182,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                            
                             (tx.value_locked_by(sHash) == (swapVal)).trace("SV4.1: ") &&
                             (buyerVal == txOutputsBuyer.head.value).trace("SV4.2: ") &&
-                            (sellerVal == tx.value_sent_to(sellerPkh)).trace("SV4.3: ") &&
+                            (sellerVal == tx.value_sent_to(sellerPKH)).trace("SV4.3: ") &&
                             (feeVal == txOutputsOwner.head.value).trace("SV4.3: ") 
                         }) 
                     },
@@ -201,7 +201,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         datumOutInline: Datum = Datum::from_data(datumOut.data);
                         swapVal: Value = checkAdaVal(datumOutInline.offeredAssetVal) + beaconVal + sellerTokenVal;
                         // TODO check that askedAsset price is not less than min Ada
-                        tx.is_signed_by(sellerPkh).trace("SV5.1: ") &&
+                        tx.is_signed_by(sellerPKH).trace("SV5.1: ") &&
                         (tx.value_locked_by(sHash) == (swapVal)).trace("SV5.2: ") 
                     },
                     else => false.trace("SV5.3: ") // No inline datum found

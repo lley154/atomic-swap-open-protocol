@@ -1,28 +1,17 @@
 import axios from 'axios';
-import { promises as fs } from 'fs';
-import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 
 import { Address,
-         Assets,
          bytesToHex,
-         bytesToText,
-         Datum,
-         hexToBytes,
-         ListData,
          MintingPolicyHash,
-         textToBytes,
          Tx,
-         TxId,
-         TxOutput,
          UTxO, 
-         ValidatorHash,
-         Value} from "@hyperionbt/helios";
+         } from "@hyperionbt/helios";
 
-import SwapInfo from '../utils/swaps';
+import SwapInfo from '../common/types';
 
 export {
     getNetworkParams,
-    getUtxos,
+    getRefUtxo,
     getSwapInfo,
     getSwaps,
     getSwapUtxo,
@@ -63,30 +52,6 @@ async function getNetworkParams(network: string) {
 }
 
 
-async function getUtxos(blockfrostUrl: string) {
-
-    const apiKey : string = process.env.NEXT_PUBLIC_BLOCKFROST_API_KEY as string;
-
-    try {
-       let res = await axios({
-            url: blockfrostUrl,
-            method: 'get',
-            timeout: 8000,
-            headers: {
-                'Content-Type': 'application/json',
-                'project_id': apiKey
-            }
-        })
-        if(res.status == 200){
-            return res.data;
-        } else {
-          throw console.error("getUtxos: error getting utxos from blockfrost: ", res);
-        }   
-    }
-    catch (err) {
-        throw console.error("getUtxos: error getting utxos from blockfrost: ", err);
-    }
-}
 
 /*
 const getSwapUtxo = async (swapValidatorAddr : Address, beaconMPH : MintingPolicyHash) : Promise<UTxO> => {
@@ -157,8 +122,40 @@ const getSwapUtxo = async (swapValidatorAddr : Address, beaconMPH : MintingPolic
         console.error("getSwapUtxo Failed: ", err);
         throw err;
     }
-  }
-  
+  }  
+
+
+
+const getRefUtxo = async (refValidatorAddr : Address) : Promise<UTxO> => {
+
+    const addr = refValidatorAddr.toBech32();
+    const payload = { 
+        addr: addr
+    }
+    const api = "/api/getRefUtxo";
+
+    try {
+      let res = await axios({
+            url: api,
+            data: payload,
+            method: 'post',
+            timeout: 8000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        if(res.status == 200){
+            return UTxO.fromCbor(res.data);
+        } else {
+          console.error("getRefUtxo Error: ", res);
+          throw res.data;
+        }   
+    }
+    catch (err) {
+        console.error("getRefUtxo Failed: ", err);
+        throw err;
+    }
+  }  
 
   const getSwaps = async (beaconMPH : MintingPolicyHash) : Promise<({asset: string, quantity: string})[]> => {
 

@@ -6,7 +6,7 @@ struct Datum {
     orderId: ByteArray
     orderVal: Value
     productVal: Value
-    sellerPkh: PubKeyHash
+    sellerPKH: PubKeyHash
     version: ByteArray
 }
 
@@ -19,10 +19,10 @@ enum Redeemer {
 // Contract parameters 
 const VERSION: ByteArray = #
 const SELLER_PKH: ByteArray = #
-const sellerPkh: PubKeyHash = PubKeyHash::new(SELLER_PKH)
+const sellerPKH: PubKeyHash = PubKeyHash::new(SELLER_PKH)
 
 const OWNER_PKH: ByteArray = #
-const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
 
 func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
@@ -35,11 +35,11 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             buyerVal: Value = datum.depositVal + datum.productVal;
 
             tx.is_signed_by(datum.buyerPkh).trace("EV1: ") &&
-            tx.is_signed_by(datum.sellerPkh).trace("EV2: ") &&
-            tx.is_signed_by(ownerPkh).trace("EV3: ") &&
-            (tx.value_sent_to(datum.sellerPkh).contains(sellerVal)).trace("EV4: ") &&
+            tx.is_signed_by(datum.sellerPKH).trace("EV2: ") &&
+            tx.is_signed_by(ownerPKH).trace("EV3: ") &&
+            (tx.value_sent_to(datum.sellerPKH).contains(sellerVal)).trace("EV4: ") &&
             (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV5: ") &&
-            (datum.sellerPkh == sellerPkh).trace("EV6: ") 
+            (datum.sellerPKH == sellerPKH).trace("EV6: ") 
 
         },
         Refund => {
@@ -47,23 +47,23 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             buyerVal: Value = datum.depositVal + datum.orderVal;
 
             tx.is_signed_by(datum.buyerPkh).trace("EV8: ") &&
-            tx.is_signed_by(datum.sellerPkh).trace("EV9: ") &&
-            tx.is_signed_by(ownerPkh).trace("EV10: ") &&
-            (tx.value_sent_to(datum.sellerPkh).contains(sellerVal)).trace("EV11: ") &&
+            tx.is_signed_by(datum.sellerPKH).trace("EV9: ") &&
+            tx.is_signed_by(ownerPKH).trace("EV10: ") &&
+            (tx.value_sent_to(datum.sellerPKH).contains(sellerVal)).trace("EV11: ") &&
             (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV12: ") &&
-            (datum.sellerPkh == sellerPkh).trace("EV13: ") 
+            (datum.sellerPKH == sellerPKH).trace("EV13: ") 
         },
         Process => {
             sellerVal: Value = datum.orderVal;
             buyerVal: Value = datum.productVal;
             ownerVal: Value = datum.depositVal;
 
-            tx.is_signed_by(datum.sellerPkh).trace("EV15: ") &&
-            tx.is_signed_by(ownerPkh).trace("EV15: ") &&
-            (tx.value_sent_to(datum.sellerPkh).contains(sellerVal)).trace("EV16: ") &&
+            tx.is_signed_by(datum.sellerPKH).trace("EV15: ") &&
+            tx.is_signed_by(ownerPKH).trace("EV15: ") &&
+            (tx.value_sent_to(datum.sellerPKH).contains(sellerVal)).trace("EV16: ") &&
             (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV17: ") &&
-            (tx.value_sent_to(ownerPkh).contains(ownerVal)).trace("EV18: ") &&
-            (datum.sellerPkh == sellerPkh).trace("EV19: ") 
+            (tx.value_sent_to(ownerPKH).contains(ownerVal)).trace("EV18: ") &&
+            (datum.sellerPKH == sellerPKH).trace("EV19: ") 
         }
     }
 }

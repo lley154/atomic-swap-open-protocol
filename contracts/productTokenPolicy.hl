@@ -8,21 +8,21 @@ enum Redeemer {
 // Contract parameters 
 const VERSION: ByteArray = #
 const SELLER_PKH: ByteArray = #
-const sellerPkh: PubKeyHash = PubKeyHash::new(SELLER_PKH)
+const sellerPKH: PubKeyHash = PubKeyHash::new(SELLER_PKH)
 const OWNER_PKH: ByteArray = #
-const ownerPkh: PubKeyHash = PubKeyHash::new(OWNER_PKH)
+const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 const PRODUCT_ID: ByteArray = #
 
 func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     
     redeemer.switch {
         Mint => {
-            ctx.tx.is_signed_by(sellerPkh).trace("PTP1.0: ") && 
-            ctx.tx.is_signed_by(ownerPkh).trace("PTP1.1: ")
+            ctx.tx.is_signed_by(sellerPKH).trace("PTP1.0: ") && 
+            ctx.tx.is_signed_by(ownerPKH).trace("PTP1.1: ")
         },
         Burn => {
-            ctx.tx.is_signed_by(sellerPkh).trace("PTP1.2: ") && 
-            ctx.tx.is_signed_by(ownerPkh).trace("PTP1.3: ")
+            ctx.tx.is_signed_by(sellerPKH).trace("PTP1.2: ") && 
+            ctx.tx.is_signed_by(ownerPKH).trace("PTP1.3: ")
         }
     }
 }
