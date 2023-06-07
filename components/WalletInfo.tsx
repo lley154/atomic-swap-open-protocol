@@ -19,6 +19,7 @@ const WalletInfo = ({ walletInfo } : any) => {
 
     return (
         <div style={{ width: '100%'}}>
+            <b>Wallet Public Key Hash</b> {walletInfo.pkh}<br></br><br></br>
             <b>Wallet Balance</b><hr></hr>
             <table style={{ width: '100%' }}>
             <thead>

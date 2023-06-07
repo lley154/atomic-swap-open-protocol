@@ -35,6 +35,7 @@ export default async function calcOrderDetails (utxo : UTxO,
    // swapAskedAssetValue can't have any negative values
    swapAskedAssetValue.assertAllPositive();
 
+   // Check the datum that it contains both the askedAsset and offeredAsset
    assert(utxo.origOutput.datum.data.list.length == 2, "calcOrderDetails: invalid datum");
 
    // Get Values from the swap datum
@@ -42,14 +43,17 @@ export default async function calcOrderDetails (utxo : UTxO,
    const offeredAssetValue = Value.fromUplcData(utxo.origOutput.datum.data.list[1]);
 
    const askedAssetMP = askedAssetValue.assets.mintingPolicies;
+   let askedAssetlovelace = false;
    var askedAssetMPH;
    var askedAssetTN;
    var askedAssetQty;
 
+
    // Check if the askedAsset is lovelace
    if (askedAssetMP.length == 0) {
-       askedAssetMPH = MintingPolicyHash.fromHex("");
-       askedAssetTN = askedAssetValue.assets.getTokenNames(askedAssetMPH)[0];
+       askedAssetlovelace = true;
+       //askedAssetMPH "";
+       //askedAssetTN = lovelaceTN;
        askedAssetQty = askedAssetValue.lovelace;
    } else { 
        // The askedAsset is a native token and should only contain 1 MPH
@@ -60,53 +64,64 @@ export default async function calcOrderDetails (utxo : UTxO,
    }
 
    const offeredAssetMP = offeredAssetValue.assets.mintingPolicies;
+   let offeredAssetlovelace = false;
    var offeredAssetMPH;
    var offeredAssetTN;
    var offeredAssetQty;
 
    // Check if the offeredAsset is lovelace
    if (offeredAssetMP.length == 0) {
-       offeredAssetMPH = MintingPolicyHash.fromHex("");
-       offeredAssetTN = offeredAssetValue.assets.getTokenNames(offeredAssetMPH)[0];
+       offeredAssetlovelace = true;
+       //offeredAssetMPH = offeredAssetMP;
+       //offeredAssetTN = lovelaceTN;
        offeredAssetQty = offeredAssetValue.lovelace;
    } else { 
        // The offeredAsset is a native token and should only contain 1 MPH
-       assert(offeredAssetValue.assets.mintingPolicies.length == 1);
+       assert(offeredAssetMP.length == 1);
        offeredAssetMPH = offeredAssetValue.assets.mintingPolicies[0];
        offeredAssetTN = offeredAssetValue.assets.getTokenNames(offeredAssetMPH)[0];
        offeredAssetQty = offeredAssetValue.assets.get(offeredAssetMPH, offeredAssetTN);
    }
 
    const swapAskedAssetMP = swapAskedAssetValue.assets.mintingPolicies;
+   let swapAskedAssetlovelace = false;
    var swapAskedAssetMPH;
    var swapAskedAssetTN;
    var swapAskedAssetQty;
 
    // Check if the swapAskedAsset is lovelace
    if (swapAskedAssetMP.length == 0) {
-       swapAskedAssetMPH = MintingPolicyHash.fromHex("");
-       swapAskedAssetTN = swapAskedAssetValue.assets.getTokenNames(swapAskedAssetMPH)[0];
+        swapAskedAssetlovelace = true;
+        //swapAskedAssetMPH = swapAskedAssetMP;
+        //swapAskedAssetTN = lovelaceTN;
        swapAskedAssetQty = swapAskedAssetValue.lovelace;
    } else { 
        // The swapAskedAsset is a native token and should only contain 1 MPH
-       assert(swapAskedAssetValue.assets.mintingPolicies.length == 1);
+       assert(swapAskedAssetMP.length == 1);
        swapAskedAssetMPH = swapAskedAssetValue.assets.mintingPolicies[0];
        swapAskedAssetTN = swapAskedAssetValue.assets.getTokenNames(swapAskedAssetMPH)[0];
        swapAskedAssetQty = swapAskedAssetValue.assets.get(swapAskedAssetMPH, swapAskedAssetTN);
    }
 
-   // Check that the askedAssets match
-   if (askedAssetMPH.hex === swapAskedAssetMPH.hex &&
-       bytesToHex(askedAssetTN) === bytesToHex(swapAskedAssetTN)) {
-       console.log("");
-       console.log("calcQtyToBuy: swap assets match");
-   } else {
-       throw console.error("calcQtyToBuy: swap assets don't match")
+   // If asked assets is not lovelace and asked and swap assets MPHs & TNs exist
+   if (!askedAssetlovelace && 
+        askedAssetMPH && 
+        swapAskedAssetMPH &&
+        askedAssetTN &&
+        swapAskedAssetTN) {
+        // Check that the askedAssets match
+        if (askedAssetMPH.hex === swapAskedAssetMPH.hex &&
+            bytesToHex(askedAssetTN) === bytesToHex(swapAskedAssetTN)) {
+            console.log("");
+            console.log("calcQtyToBuy: swap assets match");
+        } else {
+            throw console.error("calcQtyToBuy: swap assets don't match")
+        }
    }
-
-   var qtyToBuy;
-   var qtyRemainder;
-   var changeAmt;
+   
+   var qtyToBuy : bigint;
+   var qtyRemainder : bigint;
+   var changeAmt : bigint;
    
    const price = askedAssetQty;
    const qty = offeredAssetQty;
@@ -119,7 +134,7 @@ export default async function calcOrderDetails (utxo : UTxO,
        throw console.error("calcRemainder: insufficient funds")
    } else if (diff >= 0) { 
        qtyToBuy = qty;  // can purchase all available qty
-       qtyRemainder = 0;
+       qtyRemainder = BigInt(0);
        changeAmt = spendAmt - qtyToBuy * price; // return the change to the buyer
    } else {
        qtyToBuy = orderAmt; 
@@ -141,21 +156,32 @@ export default async function calcOrderDetails (utxo : UTxO,
    
    // Create the updated offeredAsset
    const updatedOfferedAsset = new Assets();
-   updatedOfferedAsset.addComponent(
-       offeredAssetMPH,
-       offeredAssetTN,
-       BigInt(qtyRemainder)
-   );
-   const updatedOfferAssetValue = new Value(BigInt(0), updatedOfferedAsset);
+   var updatedOfferAssetValue;
+   if (!offeredAssetlovelace && offeredAssetMPH && offeredAssetTN) {
+        updatedOfferedAsset.addComponent(
+            offeredAssetMPH,
+            offeredAssetTN,
+            qtyRemainder
+        );
+        updatedOfferAssetValue = new Value(BigInt(0), updatedOfferedAsset);
+    
+   } else {
+        updatedOfferAssetValue = new Value(qtyRemainder);
+   }
 
    // Create the offeredAsset that is being bought
    const buyOfferedAsset = new Assets();
-   buyOfferedAsset.addComponent(
-       offeredAssetMPH,
-       offeredAssetTN,
-       BigInt(qtyToBuy)
-   );
-   const buyOfferAssetValue = new Value(BigInt(0), buyOfferedAsset);
+   var buyOfferAssetValue;
+   if (!offeredAssetlovelace && offeredAssetMPH && offeredAssetTN) {
+        buyOfferedAsset.addComponent(
+            offeredAssetMPH,
+            offeredAssetTN,
+            qtyToBuy
+        );
+        buyOfferAssetValue = new Value(BigInt(0), buyOfferedAsset);
+   } else {
+        buyOfferAssetValue = new Value(qtyToBuy);
+   }
 
    // Create the change for the asked asset
    var noChangeAmt;
@@ -165,18 +191,20 @@ export default async function calcOrderDetails (utxo : UTxO,
    } else {
        noChangeAmt = false;
    }
-   if (swapAskedAssetMP.length == 0) {
-       // Change is in lovelace
-       changeAskedAssetValue = new Value(changeAmt);
-   } else {
-       // Change is a native asset
+
+   if (!swapAskedAssetlovelace && askedAssetMPH && askedAssetTN) {
+        // Change is a native asset
        const changeAskedAsset = new Assets();
        changeAskedAsset.addComponent(
            askedAssetMPH,
            askedAssetTN,
            changeAmt
        );
-       changeAskedAssetValue = new Value(BigInt(0), changeAskedAsset);
+       changeAskedAssetValue = new Value(BigInt(0), changeAskedAsset);   
+
+   } else {
+        // Change is in lovelace
+        changeAskedAssetValue = new Value(changeAmt);
    }  
 
    const orderInfo = { 

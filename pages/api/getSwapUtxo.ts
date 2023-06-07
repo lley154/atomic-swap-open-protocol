@@ -74,7 +74,7 @@ export default async function handler(
     try {
         // TODO - sanitize inputs
         const utxo = await getSwapUtxo(req.body.addr, req.body.unit)
-        console.log("utxo", utxo.toCbor());
+        console.log("getSwapUtxo: utxo", utxo.toCbor());
         res.status(200).send(utxo.toCbor());
     }
     catch (err) {

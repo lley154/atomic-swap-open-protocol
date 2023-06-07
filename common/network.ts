@@ -126,11 +126,12 @@ const getSwapUtxo = async (swapValidatorAddr : Address, beaconMPH : MintingPolic
 
 
 
-const getRefUtxo = async (refValidatorAddr : Address) : Promise<UTxO> => {
+const getRefUtxo = async (refValidatorAddr : Address, userTokenTN : string) : Promise<UTxO> => {
 
     const addr = refValidatorAddr.toBech32();
     const payload = { 
-        addr: addr
+        addr: addr,
+        userTN: userTokenTN
     }
     const api = "/api/getRefUtxo";
 

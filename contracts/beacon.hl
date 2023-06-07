@@ -12,5 +12,6 @@ const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
 
 func main(_, ctx: ScriptContext) -> Bool {
+    print("VERSION: " + VERSION.show());
     ctx.tx.is_signed_by(ownerPKH).trace("BTP1: ")
 }

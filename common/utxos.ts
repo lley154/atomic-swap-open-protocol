@@ -15,7 +15,62 @@ import { getRefUtxo } from '../common/network';
 export { getRefTokenUTXO,
          getTokenNames,
          getSwapDatumInfo,
-         tokenCount }
+         tokenCount,
+         tokenNameCount }
+
+
+
+/**
+ * Get the list of tokens names that match the minting policy
+ * hash provided
+ * @param {MintingPolicyHash} tokenMph
+ * @param {string} tn
+ * @param {Value} value
+ * @returns {number} 
+ */
+const tokenNameCount = async (tokenMph: MintingPolicyHash, tn : string,  value: Value): Promise<number> => {
+    let count = 0;
+        const mphs = value.assets.mintingPolicies;
+        for (const mph of mphs) {
+            if (mph.hex === tokenMph.hex) {
+                const tokenNames = value.assets.getTokenNames(mph);
+                for (const tokenName of tokenNames) {
+                    if (bytesToText(tokenName) === tn) {
+                        count += 1;
+                    }
+                }
+            }
+        }
+
+    return count;
+}
+
+/**
+ * Get the list of tokens names that match the minting policy
+ * hash provided
+ * @param {MintingPolicyHash} tokenMph
+ * @param {string} tn
+ * @param {UTxO} utxo
+ * @returns {number} 
+ */
+/*
+const tokenNameCount = async (tokenMph: MintingPolicyHash, tn : string,  utxo: UTxO): Promise<number> => {
+    let count = 0;
+        const mphs = utxo.value.assets.mintingPolicies;
+        for (const mph of mphs) {
+            if (mph.hex === tokenMph.hex) {
+                const tokenNames = utxo.value.assets.getTokenNames(mph);
+                for (const tokenName of tokenNames) {
+                    if (bytesToText(tokenName) === tn) {
+                        count += 1;
+                    }
+                }
+            }
+        }
+
+    return count;
+}
+*/
 
 /**
  * Get the list of tokens names that match the minting policy
@@ -114,7 +169,7 @@ const getRefTokenUTXO = async (userPKH : string,
     const userTokenValCompiledProgram = userTokenValProgram.compile(optimize.valueOf());  
     const userTokenValHash = userTokenValCompiledProgram.validatorHash;
 
-    const utxo = await getRefUtxo(Address.fromHashes(userTokenValHash));
+    const utxo = await getRefUtxo(Address.fromHashes(userTokenValHash), userTokenTN);
 
     // Only one reference UTXO with the matching seller MPH should exist
     if (utxo.origOutput.value.eq(userTokenValue)) { 

@@ -8,7 +8,7 @@ enum Redeemer {
 }
 
 struct TokenDatum {
-    userPKH: PubKeyHash
+    userPkhBA: ByteArray
 }
 
 // Contract parameters 
@@ -22,6 +22,7 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     
     tx : Tx = ctx.tx;
     txOutputs : []TxOutput = tx.outputs;
+    print("VERSION: " + VERSION.show());
 
     redeemer.switch {
         red: Mint => {
@@ -49,8 +50,10 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 txOutputVHash.datum.switch {
                     refTokenDatum: Inline => { 
                         refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
+                        userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA);
+                        print("userPkh: " + userPkh.show());
                 
-                        tx.is_signed_by(refTokenData.userPKH).trace("UTP5: ") 
+                        tx.is_signed_by(userPkh).trace("UTP5: ") 
                     },
                     else => false.trace("UTP6:") // no reference inline datum
                 }

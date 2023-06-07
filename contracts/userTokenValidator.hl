@@ -5,17 +5,20 @@ enum Redeemer {
 }
 
 struct Datum {
-    userPKH: PubKeyHash
+    userPkhBA: ByteArray
 }
 
 // Contract parameters 
 const VERSION: ByteArray = #
 const USER_PKH: ByteArray = #
+const userPKH: PubKeyHash = PubKeyHash::new(USER_PKH)
 const OWNER_PKH: ByteArray = #
 const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
 
 func main(_, _, ctx: ScriptContext) -> Bool {
     
+    print("VERSION: " + VERSION.show());
+    ctx.tx.is_signed_by(userPKH).trace("UTV1: ") &&
     ctx.tx.is_signed_by(ownerPKH).trace("UTV1: ")
 }

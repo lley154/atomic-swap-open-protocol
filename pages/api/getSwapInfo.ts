@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import SwapInfo from '../../utils/swaps';
+import SwapInfo from '../../common/types';
 
 import {
     Bool,

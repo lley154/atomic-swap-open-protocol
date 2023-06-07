@@ -6,7 +6,7 @@ struct Datum {
 }
 
 struct TokenDatum {
-    userPKH: PubKeyHash
+    userPkhBA: ByteArray
 }
 
 enum Redeemer {
@@ -57,8 +57,11 @@ func getUserPkh(userTokenVal: Value, txRefInputs: []TxInput) -> Option[PubKeyHas
         if (txRefInputs.head.output.value == minAdaVal + userTokenVal) {
             txRefInputs.head.output.datum.switch {
                 refTokenDatum: Inline => {
+
                     refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
-                    Option[PubKeyHash]::Some{refTokenData.userPKH}
+                    //userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA);
+                    userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA.slice(2,56));
+                    Option[PubKeyHash]::Some{userPkh}
                 },
                 else => Option[PubKeyHash]::None // no reference inline datum
             }
@@ -73,6 +76,8 @@ func getUserPkh(userTokenVal: Value, txRefInputs: []TxInput) -> Option[PubKeyHas
 
 func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
+    print("VERSION: " + VERSION.show());
+    
     // Get hash of this validator
     sHash : ValidatorHash = ctx.get_current_validator_hash();
     beaconTN: ByteArray = sHash.serialize().slice(2,60); // remove header info
@@ -155,6 +160,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         // reference tokens and with a correct pkh matches
                         getUserPkh(buyerTokenVal, txRefInputs).switch {
                             buyerPkhLookup : Some => {
+                                print("buyerPkhLookup.some: " + buyerPkhLookup.some.show());
                                 tx.is_signed_by(buyerPkhLookup.some).trace("SV2.4: ") 
                             }, 
                             else => { false.trace("SV2.5: ") } // could not find user pkh
