@@ -61,15 +61,15 @@ export default async function handler(
                 
                 if (addr.inline_datum) {
                     const utxo = new UTxO(
-                        TxId.fromHex(address[0].tx_hash),
-                        BigInt(address[0].output_index),
+                        TxId.fromHex(addr.tx_hash),
+                        BigInt(addr.output_index),
                         new TxOutput(
-                          Address.fromBech32(refValidatorAddr),
+                          Address.fromBech32(addr.address),
                           utxoValue,
                           Datum.inline(new ByteArray(addr.inline_datum))
                         )
                     );
-                    console.log("getRefUtxo: utxo: ", utxo);
+                    console.log("getRefUtxo: userTN token found: ", userTN);
                     return utxo;
                 } else {
                     throw console.error("getRefUtxo: No inline datum found")

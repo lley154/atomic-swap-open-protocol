@@ -59,9 +59,16 @@ func getUserPkh(userTokenVal: Value, txRefInputs: []TxInput) -> Option[PubKeyHas
                 refTokenDatum: Inline => {
 
                     refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
-                    //userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA);
-                    userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA.slice(2,56));
+                    print("refTokenData.userPkhBA: " + refTokenData.userPkhBA.show());
+                    print("refTokenData.userPkhBA.length: " + refTokenData.userPkhBA.length.show());
+                    //if (refTokenData.userPkhBA.length == 30) {
+                    userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA.slice(2,30));
                     Option[PubKeyHash]::Some{userPkh}
+                    //} else {
+                    //    userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA);
+                    //    Option[PubKeyHash]::Some{userPkh}
+                    //}  
+                    
                 },
                 else => Option[PubKeyHash]::None // no reference inline datum
             }
@@ -77,7 +84,7 @@ func getUserPkh(userTokenVal: Value, txRefInputs: []TxInput) -> Option[PubKeyHas
 func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
     print("VERSION: " + VERSION.show());
-    
+
     // Get hash of this validator
     sHash : ValidatorHash = ctx.get_current_validator_hash();
     beaconTN: ByteArray = sHash.serialize().slice(2,60); // remove header info
@@ -130,12 +137,6 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             txOutputsBuyer : []TxOutput = tx.outputs_sent_to(red.buyerPkh);
             txOutputsOwner : []TxOutput = tx.outputs_sent_to(ownerPKH);
             if (txOutputsContract.length == 1 && txOutputsBuyer.length >= 1) {
-
-                // Pull out the seller token value 
-                //sellerToken: Map[ByteArray]Int = txOutputsContract.head.value.get_policy(userTokenMPH);   
-                //sellerTokenTN: String = (sellerToken.head_key).slice(0,56).decode_utf8();
-                //sellerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMPH: sellerToken};
-                //sellerTokenVal = Value::from_map(sellerTokenMap);
                 
                 // Pull out the buyer token value
                 buyerToken: Map[ByteArray]Int = txOutputsBuyer.head.value.get_policy(userTokenMPH);   
@@ -167,6 +168,8 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         } &&
                         getUserPkh(sellerTokenVal, txRefInputs).switch {
                             sellerPKHLookup : Some => {
+                                print("sellerPkhLookup.some: " + sellerPKHLookup.some.show());
+                                print("sellerPKH: " + sellerPKH.show());
                                 (sellerPKH == sellerPKHLookup.some).trace("SV2.6: ") 
                             }, 
                             else => { false.trace("SV2.7: ") } // could not find user pkh

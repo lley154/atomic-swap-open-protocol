@@ -35,6 +35,7 @@ import calcOrderDetails from '../common/orders';
 import {
   Assets,
   Address,
+  bytesToHex,
   bytesToText,
   Cip30Handle,
   Cip30Wallet,
@@ -62,7 +63,7 @@ declare global {
 config.AUTO_SET_VALIDITY_RANGE = false;
 
 // Global variables
-const version = "3.0";
+const version = "3.2";
 const minAda : bigint = BigInt(3_500_000); // minimum lovelace needed when sending tokens
 const maxTxFee: bigint = BigInt(10_000_000); // maximum estimated transaction fee
 const minChangeAmt: bigint = BigInt(1_000_000); // minimum lovelace needed to be sent back as change
@@ -70,7 +71,7 @@ const ownerPKH = new PubKeyHash(process.env.NEXT_PUBLIC_OWNER_PKH as string);
 const serviceFee: bigint = BigInt(1_000_000); // service fee for a swap tx
 const depositAda: bigint = BigInt(5_000_000); // buyer deposit for escrow
 const optimize = false;
-const network = "preview";
+const network = "preprod";
 
 
 // Compile the Beacon minting script
@@ -743,7 +744,7 @@ const Home: NextPage = (props : any) => {
       console.log("tx before final", tx.dump());
       await tx.finalize(networkParams, changeAddr, utxos[1]);
       console.log("tx after final", tx.dump());
-      
+     
       // Sign tx with user signature
       const signatureOwnerWallet = await walletAPI.signTx(tx);
       tx.addSignatures(signatureOwnerWallet);
@@ -1185,7 +1186,7 @@ const assetSwap = async (params : any) => {
       const before = new Date(now.getTime());
       before.setMinutes(now.getMinutes() - 5);
       const after = new Date(now.getTime());
-      after.setMinutes(now.getMinutes() + 5);
+      after.setMinutes(now.getMinutes() + 60);
  
       // Set a valid time interval
       tx.validFrom(before);
@@ -1225,6 +1226,8 @@ const assetSwap = async (params : any) => {
       // Sign tx with sellers signature
       const signatures = await walletAPI.signTx(tx);
       tx.addSignatures(signatures);
+      console.log("tx cbor: ", bytesToHex(tx.toCbor()));
+      
 
       console.log("Submitting transaction...");
 
@@ -1276,7 +1279,7 @@ const assetSwap = async (params : any) => {
             {!tx.txId && walletIsEnabled && <div className={styles.border}><WalletInfo walletInfo={walletInfo}/></div>}
             {isLoading && <LoadingSpinner />}
             {tx.txId && <div className={styles.border}><b>Transaction Success!!!</b>
-            <p>TxId &nbsp;&nbsp;<a href={"https://preview.cexplorer.io/tx/" + tx.txId} target="_blank" rel="noopener noreferrer" >{tx.txId}</a></p>
+            <p>TxId &nbsp;&nbsp;<a href={"https://"+network+".cexplorer.io/tx/" + tx.txId} target="_blank" rel="noopener noreferrer" >{tx.txId}</a></p>
             <p>Please wait until the transaction is confirmed on the blockchain and reload this page before doing another transaction</p>
           </div>}
           {walletIsEnabled && !tx.txId && swapList && <div className={styles.border}><SwapList swapList={swapList} onSwapInfo={updateSwapDetails}/></div>}
