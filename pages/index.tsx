@@ -63,7 +63,7 @@ declare global {
 config.AUTO_SET_VALIDITY_RANGE = false;
 
 // Global variables
-const version = "3.2";
+const version = "3.4";
 const minAda : bigint = BigInt(3_500_000); // minimum lovelace needed when sending tokens
 const maxTxFee: bigint = BigInt(10_000_000); // maximum estimated transaction fee
 const minChangeAmt: bigint = BigInt(1_000_000); // minimum lovelace needed to be sent back as change
@@ -1031,18 +1031,8 @@ const assetSwap = async (params : any) => {
 
       // Add the script as a witness to the transaction
       tx.attachScript(swapCompiledProgram);
-
-      console.log("beaconMPH", swapInfo.beaconMPH);
-      // Get the UTXO that has the swap datum
-      const swapUtxo = await getSwapUtxo(Address.fromHashes(swapValHash), MintingPolicyHash.fromHex(swapInfo.beaconMPH));
-
-      // Create the swap redeemer
-      const swapRedeemer = (new swapProgram.types.Redeemer.Swap(changeAddr.pubKeyHash))._toUplcData();
-
-      tx.addInput(swapUtxo, swapRedeemer); 
-
-      // Get the datum info
-      //const datumInfo = await getSwapDatumInfo(swapUtxo);
+      
+      // Get the buyer token
       var utxosAll : UTxO[];
       if (utxos[1].length > 0) {
         utxosAll = utxos[0].concat(utxos[1]);
@@ -1056,6 +1046,21 @@ const assetSwap = async (params : any) => {
       // Check that there exist only 1 user token
       console.log("buyerTokenTN: ", buyerTokenTN);
       assert(buyerTokenTN.length == 1);
+
+      // Construct the Buyer Token value
+      const buyerToken : [number[], bigint][] = [[textToBytes(buyerTokenTN[0]), BigInt(1)]];
+      const buyerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapInfo.userTokenMPH), buyerToken]]);
+      const buyerTokenValue = new Value(BigInt(0), buyerTokenAsset);
+
+      console.log("beaconMPH", swapInfo.beaconMPH);
+      // Get the UTXO that has the swap datum
+      const swapUtxo = await getSwapUtxo(Address.fromHashes(swapValHash), MintingPolicyHash.fromHex(swapInfo.beaconMPH));
+
+      // Create the swap redeemer
+      const swapRedeemer = (new swapProgram.types.Redeemer.Swap(changeAddr.pubKeyHash,
+                                                                buyerTokenValue))._toUplcData();
+
+      tx.addInput(swapUtxo, swapRedeemer); 
 
       // Add the buyer & seller reference user tokens
       const buyerRefTokenUtxo = await getRefTokenUTXO(changeAddr.pubKeyHash.hex, buyerTokenTN[0], swapInfo, optimize);
@@ -1144,10 +1149,6 @@ const assetSwap = async (params : any) => {
           }
       }
 
-      // Construct the Buyer Token value
-      const buyerToken : [number[], bigint][] = [[textToBytes(buyerTokenTN[0]), BigInt(1)]];
-      const buyerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapInfo.userTokenMPH), buyerToken]]);
-      const buyerTokenValue = new Value(BigInt(0), buyerTokenAsset);
       
       console.log("swapAsset:orderDetails.buyAssetVal: ", orderDetails.buyAssetVal.toSchemaJson());
       

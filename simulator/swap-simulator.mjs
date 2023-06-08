@@ -705,7 +705,7 @@ const mintUserTokens = async (user, minAda) => {
 
         // Construct the reference token datum
         const userTokenDatum = new (userTokenValProgram.types.Datum)(
-            user.pubKeyHash
+            user.pubKeyHash.bytes
           )
         
         // Create the output for the reference user token
@@ -1106,10 +1106,16 @@ const assetSwap = async (buyer, swapAskedAssetValue, swapConfig, buyerTN) => {
         const swapUtxo = await getSwapUTXO(swapConfig);
 
         // Get the datum info
-        const datumInfo = await getSwapDatumInfo(swapUtxo);
+        //const datumInfo = await getSwapDatumInfo(swapUtxo);
+
+        // Construct the Buyer Token value
+        const buyerToken = [[buyerTN, BigInt(1)]];
+        const buyerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), buyerToken]]);
+        const buyerTokenValue = new Value(BigInt(0), buyerTokenAsset);
 
         // Create the swap redeemer
-        const swapRedeemer = (new swapProgram.types.Redeemer.Swap(buyer.pubKeyHash))._toUplcData();
+        const swapRedeemer = (new swapProgram.types.Redeemer.Swap(buyer.pubKeyHash,
+                                                                  buyerTokenValue))._toUplcData();
 
         tx.addInput(swapUtxo, swapRedeemer); 
 
@@ -1185,10 +1191,7 @@ const assetSwap = async (buyer, swapAskedAssetValue, swapConfig, buyerTN) => {
             }
         }
 
-        // Construct the Buyer Token value
-        const buyerToken = [[buyerTN, BigInt(1)]];
-        const buyerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), buyerToken]]);
-        const buyerTokenValue = new Value(BigInt(0), buyerTokenAsset);
+        
         
         console.log("swapAsset:orderDetails.buyAssetVal: ", orderDetails.buyAssetVal.toSchemaJson());
         
