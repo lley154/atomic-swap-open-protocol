@@ -13,6 +13,7 @@ enum Redeemer {
     Close 
     Swap {
         buyerPkh: PubKeyHash
+        buyerTokenVal: Value
     }
     Update 
 }
@@ -28,6 +29,7 @@ const beaconMPH: MintingPolicyHash = MintingPolicyHash::new(BEACON_MPH)
 const SELLER_PKH: ByteArray = #
 const SELLER_TN: ByteArray = #
 const sellerPKH: PubKeyHash = PubKeyHash::new(SELLER_PKH)
+//const BUYER_TN: ByteArray = #5573657220546f6b656e7c31363836313835323735323631
 const ESCROW_ENABLED: Bool = false
 const ESCROW_HASH: ByteArray = #
 const USER_TOKEN_MPH: ByteArray = #
@@ -53,21 +55,23 @@ func checkAdaVal(value: Value) -> Value {
 func getUserPkh(userTokenVal: Value, txRefInputs: []TxInput) -> Option[PubKeyHash] {
 
     if (txRefInputs.length >= 1) {
+        print("getUserPkh: userTokenVal: " + userTokenVal.show());
+        print("getUserPkh: txRefInputs.head.output.value: " + txRefInputs.head.output.value.show());
 
-        if (txRefInputs.head.output.value == minAdaVal + userTokenVal) {
+        if (txRefInputs.head.output.value.contains(userTokenVal)) {
             txRefInputs.head.output.datum.switch {
                 refTokenDatum: Inline => {
 
                     refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
                     print("refTokenData.userPkhBA: " + refTokenData.userPkhBA.show());
                     print("refTokenData.userPkhBA.length: " + refTokenData.userPkhBA.length.show());
-                    //if (refTokenData.userPkhBA.length == 30) {
-                    userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA.slice(2,30));
-                    Option[PubKeyHash]::Some{userPkh}
-                    //} else {
-                    //    userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA);
-                    //    Option[PubKeyHash]::Some{userPkh}
-                    //}  
+                    if (refTokenData.userPkhBA.length == 30) {
+                        userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA.slice(2,30));
+                        Option[PubKeyHash]::Some{userPkh}
+                    } else {
+                        userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA);
+                        Option[PubKeyHash]::Some{userPkh}
+                    }  
                     
                 },
                 else => Option[PubKeyHash]::None // no reference inline datum
@@ -139,10 +143,17 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             if (txOutputsContract.length == 1 && txOutputsBuyer.length >= 1) {
                 
                 // Pull out the buyer token value
-                buyerToken: Map[ByteArray]Int = txOutputsBuyer.head.value.get_policy(userTokenMPH);   
+                //buyerToken: Map[ByteArray]Int = txOutputsBuyer.head.value.get_policy(userTokenMPH);   
                 //buyerTN: String = (buyerToken.head_key).slice(0,56).decode_utf8();
-                buyerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMPH: buyerToken};
-                buyerTokenVal = Value::from_map(buyerTokenMap);
+                //buyerTokenMap = Map[MintingPolicyHash]Map[ByteArray]Int{userTokenMPH: buyerToken};
+                //buyerTokenVal = Value::from_map(buyerTokenMap);
+
+                // Create seller token that will be sent back to the seller
+                //buyerTokenAssetclass: AssetClass = AssetClass::new(
+                //    userTokenMPH, 
+                //    red.buyerTN.decode_utf8().serialize()
+                //);
+                //buyerTokenVal : Value = Value::new(buyerTokenAssetclass, 1);
              
                 txOutputsContract.head.datum.switch {
                     datumOut: Inline => { 
@@ -159,9 +170,10 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         (datumIn.offeredAssetVal.get(offeredAssetclass) > 0).trace("SV2.3: ") &&
                         // Check that the buyer and seller tokens have a corresponding
                         // reference tokens and with a correct pkh matches
-                        getUserPkh(buyerTokenVal, txRefInputs).switch {
+                        getUserPkh(red.buyerTokenVal, txRefInputs).switch {
                             buyerPkhLookup : Some => {
                                 print("buyerPkhLookup.some: " + buyerPkhLookup.some.show());
+                                (red.buyerPkh == buyerPkhLookup.some).trace("SV2.4a") &&
                                 tx.is_signed_by(buyerPkhLookup.some).trace("SV2.4: ") 
                             }, 
                             else => { false.trace("SV2.5: ") } // could not find user pkh
@@ -178,7 +190,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                             swapVal: Value = checkAdaVal(datumOutData.offeredAssetVal) + beaconVal + sellerTokenVal;
                             buyerVal: Value = offeredAssetDiffVal;
                             sellerVal: Value =  datumIn.askedAssetVal * offeredAssetDiffQty;
-                            escrowVal: Value = depositAdaVal + checkAdaVal(buyerVal + sellerVal);
+                            escrowVal: Value = depositAdaVal + checkAdaVal(buyerVal + sellerVal);  //+buyerTokenVal?
                             eHash = ValidatorHash::new(ESCROW_HASH);
                             
                             (tx.value_locked_by(sHash) == (swapVal)).trace("SV3.1: ") &&
@@ -186,7 +198,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                             (feeVal == txOutputsOwner.head.value).trace("SV3.3: ") 
                         } else {
                             swapVal: Value = checkAdaVal(datumOutData.offeredAssetVal) + beaconVal + sellerTokenVal;
-                            buyerVal: Value = checkAdaVal(offeredAssetDiffVal) + buyerTokenVal;
+                            buyerVal: Value = checkAdaVal(offeredAssetDiffVal) + red.buyerTokenVal;
                             sellerVal: Value =  checkAdaVal(datumIn.askedAssetVal * offeredAssetDiffQty);
                            
                             (tx.value_locked_by(sHash) == (swapVal)).trace("SV4.1: ") &&
