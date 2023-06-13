@@ -46,6 +46,7 @@ export {
 }
 
 const version = "1.0";
+const userTokenName = "User Token"
 
 config.AUTO_SET_VALIDITY_RANGE = false;
 
@@ -342,8 +343,8 @@ const getEscrowUTXO = async (orderId, buyerPkh, sellerPKH, escrowConfig) => {
     for (const utxo of escrowUtxos) {
 
         // only one UTXO with orderId, buyerPkh & sellerPKH should exist
-        if (bytesToText(utxo.origOutput.datum.data.list[2].bytes) === orderId &&
-            PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[0]).hex === buyerPkh.hex &&
+        if (bytesToText(utxo.origOutput.datum.data.list[0].bytes) === orderId &&
+            PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[1]).hex === buyerPkh.hex &&
             PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[5]).hex === sellerPKH.hex) { 
             console.log("");
             console.log("getEscrowUTXO: UTXO with order found");
@@ -617,13 +618,13 @@ const getEscrowDatumInfo = async (utxo) => {
 
     const datumInfo = {
         
-        buyerPkh: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[0]),
-        depositVal: Value.fromUplcData(utxo.origOutput.datum.data.list[1]),
-        orderId: utxo.origOutput.datum.data.list[2].bytes,
+        orderId: utxo.origOutput.datum.data.list[0].bytes,
+        buyerPkh: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[1]),
+        depositVal: Value.fromUplcData(utxo.origOutput.datum.data.list[2]),
         orderVal: Value.fromUplcData(utxo.origOutput.datum.data.list[3]),
         productVal: Value.fromUplcData(utxo.origOutput.datum.data.list[4]),
         sellerPKH: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[5]),
-        version: utxo.origOutput.datum.data.list[6]
+        version: utxo.origOutput.datum.data.list[6].bytes
     }
     return datumInfo
 }
@@ -651,6 +652,7 @@ const mintUserTokens = async (user, minAda) => {
 
         // Compile the user token policy script
         userTokenPolicyProgram.parameters = {["VERSION"] : version};
+        userTokenPolicyProgram.parameters = {["TOKEN_NAME"] : textToBytes(userTokenName)};
         userTokenPolicyProgram.parameters = {["OWNER_PKH"] : owner.pubKeyHash.hex};
         userTokenPolicyProgram.parameters = {["MIN_ADA"] : minAda};
         const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
@@ -679,7 +681,7 @@ const mintUserTokens = async (user, minAda) => {
         before.setMinutes(now.getMinutes() - 5);
         const after = new Date(now.getTime());
         after.setMinutes(now.getMinutes() + 5);
-        const userTokenTN = textToBytes("User Token|" + now.getTime().toString());
+        const userTokenTN = textToBytes(userTokenName + "|" + now.getTime().toString());
 
         // Create the user token and reference token
         const userTokens = [[userTokenTN, BigInt(2)]];
@@ -1191,8 +1193,6 @@ const assetSwap = async (buyer, swapAskedAssetValue, swapConfig, buyerTN) => {
             }
         }
 
-        
-        
         console.log("swapAsset:orderDetails.buyAssetVal: ", orderDetails.buyAssetVal.toSchemaJson());
         
         // Create the output that goes to the buyer
@@ -1340,14 +1340,20 @@ const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowCon
         // Add the script as a witness to the transaction
         tx.attachScript(swapCompiledProgram);
 
+        // Construct the Buyer Token value
+        const buyerToken = [[buyerTN, BigInt(1)]];
+        const buyerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), buyerToken]]);
+        const buyerTokenValue = new Value(BigInt(0), buyerTokenAsset);
+
         // Create the swap redeemer
-        const swapRedeemer = (new swapProgram.types.Redeemer.Swap(buyer.pubKeyHash))._toUplcData();
-        
+        const swapRedeemer = (new swapProgram.types.Redeemer.Swap(buyer.pubKeyHash,
+                                                                  buyerTokenValue))._toUplcData();
+
         // Get the UTXO that has the swap datum
         const swapUtxo = await getSwapUTXO(swapConfig);
 
         // Get the datum info
-        const datumInfo = await getSwapDatumInfo(swapUtxo);
+        //const datumInfo = await getSwapDatumInfo(swapUtxo);
 
         tx.addInput(swapUtxo, swapRedeemer);   
 
@@ -1365,7 +1371,6 @@ const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowCon
         console.log("swapAsset: changeAssetVal", orderDetails.changeAssetVal.dump());
         console.log("swapAsset: offeredAssetVal", orderDetails.offeredAssetVal.dump());
         console.log("swapAsset: noChange", orderDetails.noChange);
-
 
         // Construct the swap datum
         const swapDatum = new (swapProgram.types.Datum)(
@@ -1398,11 +1403,6 @@ const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowCon
             Datum.inline(swapDatum._toUplcData())
         ));
 
-        // Construct the Buyer Token value
-        const buyerToken = [[buyerTN, BigInt(1)]];
-        const buyerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapConfig.userTokenMPH), buyerToken]]);
-        const buyerTokenValue = new Value(BigInt(0), buyerTokenAsset);
- 
         // Return the buyer token to the buyer
         tx.addOutput(new TxOutput(
             buyer.address,
@@ -1424,9 +1424,9 @@ const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowCon
 
         // Construct the escrow datum
         const escrowDatum = new (escrowProgram.types.Datum)(
+            textToBytes(orderId),
             buyer.pubKeyHash.hex,
             depositVal,
-            textToBytes(orderId),
             orderVal,
             orderDetails.buyAssetVal,
             swapConfig.sellerPKH,
@@ -1505,7 +1505,7 @@ const assetSwapEscrow = async (buyer, swapAskedAssetValue, swapConfig, escrowCon
         const before = new Date(now.getTime());
         before.setMinutes(now.getMinutes() - 5);
         const after = new Date(now.getTime());
-        after.setMinutes(now.getMinutes() + 5);
+        after.setMinutes(now.getMinutes() + 60);
    
         // Set a valid time interval
         tx.validFrom(before);

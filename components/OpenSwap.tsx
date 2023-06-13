@@ -1,19 +1,20 @@
-import { useState } from 'react'
+import { ChangeEvent, useState } from 'react'
+
 
 const openSwap = ({ onOpenSwap } : any) => {
 
-    const [version, setVersion] = useState('');
     const [askedMPH, setAskedMPH] = useState('');
     const [askedTN, setAskedTN] = useState('');
     const [askedQty, setAskedQty] = useState('');
     const [offeredMPH, setOfferedMPH] = useState('');
     const [offeredTN, setOfferedTN] = useState('');
     const [offeredQty, setOfferedQty] = useState('');
-    const [escrowEnabled, setEscrowEnabled] = useState('');
+    const [escrowEnabled, setEscrowEnabled] = useState(false);
 
     const onSubmit = (e : any) => {
         
         e.preventDefault() // prevent full page refresh
+        console.log("escrowEnabled: ", escrowEnabled);
         onOpenSwap([askedMPH,
                     askedTN,
                     askedQty,
@@ -22,6 +23,22 @@ const openSwap = ({ onOpenSwap } : any) => {
                     offeredQty,
                     escrowEnabled])
     }
+
+    const handleChangeAsked = (event: ChangeEvent<HTMLInputElement>) => {
+        const inputValue = event.target.value;
+        // Check if the input is a positive number
+        if (/^\d+$/.test(inputValue) || inputValue === '') {
+          setAskedQty(inputValue);
+        }
+      };
+
+    const handleChangeOffered = (event: ChangeEvent<HTMLInputElement>) => {
+        const inputValue = event.target.value;
+        // Check if the input is a positive number
+        if (/^\d+$/.test(inputValue) || inputValue === '') {
+          setOfferedQty(inputValue);
+        }
+      };
 
     return (
 
@@ -51,7 +68,7 @@ const openSwap = ({ onOpenSwap } : any) => {
                 <br></br>
                 <input name='askedQty' type='number' id='askedQty' placeholder='Enter Asked Token Quantity' 
                 value={askedQty}
-                onChange={(e) => setAskedQty(e.target.value)}
+                onChange={(e) => handleChangeAsked(e)}
                 />
                 <p></p>                 
             </div>
@@ -78,16 +95,16 @@ const openSwap = ({ onOpenSwap } : any) => {
                 <br></br>
                 <input name='offeredQty' type='number' id='offeredQty' placeholder='Enter Offered Token Quantity' 
                 value={offeredQty}
-                onChange={(e) => setOfferedQty(e.target.value)}
+                onChange={(e) => handleChangeOffered(e)}
                 />
                 <p></p>                 
             </div>
             <div>
                 Escrow Enabled
                 <br></br>
-                <input name='escrowEnabled' type='checkbox' id='escrowEnabled'  
-                value={escrowEnabled}
-                onChange={(e) => setEscrowEnabled(e.target.value)}
+                <input name='escrowEnabled' type='checkbox' id='escrowEnabled' 
+                checked={escrowEnabled} 
+                onChange={(e) => setEscrowEnabled(e.target.checked)}
                 />
                 <p></p>                 
             </div>

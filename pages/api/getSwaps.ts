@@ -20,10 +20,10 @@ export default async function handler(
 
     try {
         // TODO - sanitize inputs
-        const swaps = await getSwaps(req.body.mph)
+        const swaps = await getSwaps(req.body.mph);
         res.status(200).send(swaps);
     }
     catch (err) {
-        res.status(500).json("getSwapInfo API error: " + err);
+        res.status(500).json("getSwaps API error: " + err);
     }
 }

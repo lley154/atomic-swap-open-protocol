@@ -1,9 +1,9 @@
 spending escrow
 
 struct Datum {
+    orderId: ByteArray
     buyerPkh: PubKeyHash
     depositVal: Value
-    orderId: ByteArray
     orderVal: Value
     productVal: Value
     sellerPKH: PubKeyHash
@@ -20,10 +20,8 @@ enum Redeemer {
 const VERSION: ByteArray = #
 const SELLER_PKH: ByteArray = #
 const sellerPKH: PubKeyHash = PubKeyHash::new(SELLER_PKH)
-
 const OWNER_PKH: ByteArray = #
 const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
-
 
 func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     
@@ -36,7 +34,6 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
             tx.is_signed_by(datum.buyerPkh).trace("EV1: ") &&
             tx.is_signed_by(datum.sellerPKH).trace("EV2: ") &&
-            tx.is_signed_by(ownerPKH).trace("EV3: ") &&
             (tx.value_sent_to(datum.sellerPKH).contains(sellerVal)).trace("EV4: ") &&
             (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV5: ") &&
             (datum.sellerPKH == sellerPKH).trace("EV6: ") 
@@ -47,7 +44,8 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             buyerVal: Value = datum.depositVal + datum.orderVal;
 
             tx.is_signed_by(datum.buyerPkh).trace("EV8: ") &&
-            tx.is_signed_by(datum.sellerPKH).trace("EV9: ") &&
+            ((tx.is_signed_by(datum.sellerPKH).trace("EV9: ")) || 
+            (tx.is_signed_by(ownerPKH).trace("EV9: "))) &&
             tx.is_signed_by(ownerPKH).trace("EV10: ") &&
             (tx.value_sent_to(datum.sellerPKH).contains(sellerVal)).trace("EV11: ") &&
             (tx.value_sent_to(datum.buyerPkh).contains(buyerVal)).trace("EV12: ") &&

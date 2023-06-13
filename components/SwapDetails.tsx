@@ -20,7 +20,7 @@ const SwapInfo = ({ swapInfo } : any) => {
                 <tr><td>Seller PKH</td><td>{swapInfo.sellerPKH}</td></tr>
                 <tr><td>Owner PKH</td><td>{swapInfo.ownerPKH}</td></tr>
                 <tr><td>Escrow Enabled</td><td>{swapInfo.escrowEnabled.toString()}</td></tr>
-                <tr><td>Escrow Validator Hash</td><td>{swapInfo.EscrowValHash}</td></tr>
+                <tr><td>Escrow Validator Hash</td><td>{swapInfo.escrowHash}</td></tr>
                 <tr><td>User Token MPH</td><td>{swapInfo.userTokenMPH}</td></tr>
                 <tr><td>User Token Validator Hash</td><td>{swapInfo.userTokenValHash}</td></tr>
                 <tr><td>Min Ada</td><td>{swapInfo.minAda}</td></tr>

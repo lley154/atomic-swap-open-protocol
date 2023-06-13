@@ -7,15 +7,20 @@ import { Address,
          UTxO, 
          } from "@hyperionbt/helios";
 
-import SwapInfo from '../common/types';
+import { SwapInfo,
+         EscrowInfo } from '../common/types';
 
 export {
+    getEscrows,
+    getEscrowInfo,
+    getEscrowUtxo,
     getNetworkParams,
     getRefUtxo,
-    getSwapInfo,
     getSwaps,
+    getSwapInfo,
     getSwapUtxo,
-    signSubmitTx
+    signSubmitTx,
+    submitTx
 }
 
 async function getNetworkParams(network: string) {
@@ -158,10 +163,43 @@ const getRefUtxo = async (refValidatorAddr : Address, userTokenTN : string) : Pr
     }
   }  
 
-  const getSwaps = async (beaconMPH : MintingPolicyHash) : Promise<({asset: string, quantity: string})[]> => {
+
+const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promise<UTxO> => {
+
+    const addr = escrowValAddr.toBech32();
+    const payload = { 
+        addr: addr,
+        orderId: orderId
+    }
+    const api = "/api/getEscrowUtxo";
+
+    try {
+      let res = await axios({
+            url: api,
+            data: payload,
+            method: 'post',
+            timeout: 8000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        if(res.status == 200){
+            return UTxO.fromCbor(res.data);
+        } else {
+          console.error("getEscrowUtxo Error: ", res);
+          throw res.data;
+        }   
+    }
+    catch (err) {
+        console.error("getEscrowUtxo Failed: ", err);
+        throw err;
+    }
+  }  
+
+  const getSwaps = async (mph : MintingPolicyHash) : Promise<({asset: string, quantity: string})[]> => {
 
     const payload = { 
-        mph : beaconMPH.hex
+        mph : mph.hex
     }
     const api = "/api/getSwaps";
 
@@ -193,6 +231,41 @@ const getRefUtxo = async (refValidatorAddr : Address, userTokenTN : string) : Pr
   }
 
 
+  const getEscrows = async (addr : Address) : Promise<string[] | undefined> => {
+
+    const payload = { 
+        addr : addr.toBech32()
+    }
+    const api = "/api/getEscrows";
+
+    try {
+      let res = await axios({
+            baseURL: 'http://localhost:3000',
+            url: api,
+            data: payload,
+            method: 'post',
+            timeout: 8000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        if(res.status == 200){
+            console.log("res.data:" , res.data);
+
+           return res.data;
+
+        } else {
+          console.error("getEscrows Error: ", res.data);
+          throw res.data;
+        }   
+    }
+    catch (err) {
+        console.error("getEscrows Failed: ", err);
+        throw err;
+    }
+  }
+
+
   const getSwapInfo = async (asset : string) : Promise<SwapInfo> => {
 
     const payload = { 
@@ -217,12 +290,47 @@ const getRefUtxo = async (refValidatorAddr : Address, userTokenTN : string) : Pr
            return res.data;
 
         } else {
-          console.error("getSwaps Error: ", res);
+          console.error("getSwapInfo Error: ", res);
           throw res.data;
         }   
     }
     catch (err) {
-        console.error("getSwaps Failed: ", err);
+        console.error("getSwapInfo Failed: ", err);
+        throw err;
+    }
+  }
+
+  const getEscrowInfo = async (beaconMPH : string, txId : string, txIdx : string) : Promise<EscrowInfo> => {
+
+    const payload = { 
+        beaconMPH : beaconMPH,
+        txId : txId,
+        txIdx : txIdx
+    }
+    const api = "/api/getEscrowInfo";
+
+    try {
+      let res = await axios({
+            baseURL: 'http://localhost:3000',
+            url: api,
+            data: payload,
+            method: 'post',
+            timeout: 8000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        if(res.status == 200){
+            console.log("res.data:" , res.data);
+
+           return res.data;
+
+        } else {
+          throw console.error("getEscrowInfo Error: ", res);
+        }   
+    }
+    catch (err) {
+        //console.error("getEscrowInfo Failed: ", err);
         throw err;
     }
   }
@@ -252,4 +360,32 @@ const signSubmitTx = async (tx: Tx) : Promise<string> => {
         console.error("signSubmitTx Failed: ", err);
         throw err;
     }
-  }
+}
+
+const submitTx = async (tx: Tx) : Promise<string> => {
+    const payload = bytesToHex(tx.toCbor());
+    const urlAPI = "/api/submitTx";
+  
+    try {
+      let res = await axios({
+            url: urlAPI,
+            data: payload,
+            method: 'post',
+            timeout: 8000,
+            headers: {
+                'Content-Type': 'application/cbor'
+            }
+        })
+        if(res.status == 200){
+            return res.data;
+        } else {
+          console.error("submitTx API Error: ", res);
+          throw res.data;
+        }   
+    }
+    catch (err) {
+        console.error("submitTx Failed: ", err);
+        throw err;
+    }
+}
+  

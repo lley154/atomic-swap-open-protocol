@@ -25,8 +25,8 @@ export default async function handler(
             projectId: apiKey
         });
 
-        console.log("getSwapUtxo: swapValidatorAddr", swapValidatorAddr);
-        console.log("getSwapUtxo: unit", unit);
+        console.log("getSwapUtxo: swapValidatorAddr: ", swapValidatorAddr);
+        console.log("getSwapUtxo: unit: ", unit);
     
         const address = await API.addressesUtxosAsset(swapValidatorAddr, unit);
                                                       

@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import SwapInfo from '../../common/types';
+import { SwapInfo } from '../../common/types';
 
 import {
     Bool,
@@ -92,8 +92,8 @@ export default async function handler(
 
         const mph = beacon.substring(0,56);
         const tn = beacon.substring(56);
+        const escrowEnabled = metaDataObj[mph][tn]['ESCROW_ENABLED'];
         const escrowHash = metaDataObj[mph][tn]['ESCROW_HASH'];
-        const escrowEnabled = metaDataObj[mph][tn]['ESCROW_ENABLED']
         const serviceFee = metaDataObj[mph][tn]['SERVICE_FEE'];
         const sellerTokenTN = metaDataObj[mph][tn]['SELLER_TN'];
         const sellerPKH = metaDataObj[mph][tn]['SELLER_PKH'];

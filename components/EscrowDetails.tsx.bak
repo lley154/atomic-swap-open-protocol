@@ -1,0 +1,45 @@
+import { useState } from 'react'
+
+const escrowApprove = ({ onEscrowApprove, escrowInfo } : any) => {
+
+    const [escrowApproved, setEscrowApproved] = useState(false);
+
+    const onSubmit = (e : any) => {
+        
+        e.preventDefault() // prevent full page refresh
+        onEscrowApprove([escrowApproved])
+    }
+
+
+    return (
+
+        <form onSubmit={onSubmit}>
+            <b>Asset Swap</b>
+            <hr></hr>
+            <div>
+                Escrow Details
+                <table style={{ width: '100%' }}>
+                <tbody>
+                    <tr><td>Asked Asset Minting Policy Hash</td><td>{swapInfo.askedAssetMPH}</td></tr>
+                    <tr><td>Asked Asset Token Name</td><td>{swapInfo.askedAssetTN === "" ? "lovelace" : swapInfo.askedAssetTN}</td></tr>
+                    <tr><td>Asked Asset Price</td><td>{swapInfo.askedAssetPrice.toLocaleString()}</td></tr>
+                    <tr><td>Total Cost</td><td>{amtToBuy.toLocaleString()}</td></tr>
+                </tbody>    
+                </table>            
+            </div>
+            <div>
+                Escrow Approved
+                <br></br>
+                <input name='escrowApproved' type='checkbox' id='escrowApproved' 
+                checked={escrowApproved} 
+                onChange={(e) => setEscrowApproved(e.target.checked)}
+                />
+                <p></p>                 
+            </div>
+            <br></br>                   
+            <input type='submit' value='Asset Swap'/>
+        </form>
+    )
+}
+
+export default escrowApprove

@@ -1,18 +1,21 @@
 import { 
     Address,
     Assets,
+    ByteArray,
     bytesToText, 
     MintingPolicyHash,
+    PubKeyHash,
     textToBytes,
     UTxO,
     TxRefInput,
     Value } from "@hyperionbt/helios";
 
-import SwapInfo from '../common/types';
+import { SwapInfo } from '../common/types';
 import UserTokenValidator from '../contracts/userTokenValidator.hl';
 import { getRefUtxo } from '../common/network';
 
-export { getRefTokenUTXO,
+export { getEscrowDatumInfo,
+         getRefTokenUTXO,
          getTokenNames,
          getSwapDatumInfo,
          tokenCount,
@@ -149,6 +152,43 @@ const getSwapDatumInfo = async (utxo: UTxO): Promise<{ askedAssetValue: Value; o
     }
     return datumInfo
 }
+
+
+
+/**
+ * Return the datum info attached to the UTXO locked at escrow contract
+ * @param {UTxO} utxo
+ * @returns {{ orderId: ByteArray,
+ *             buyerPkh: PubKeyHash,
+*              depositVal: Value,
+*              orderVal: Value,
+*              productVal: Value,
+*              sellerPKH: PubKeyHash,
+*              version: ByteArray}} 
+*/
+const getEscrowDatumInfo = async (utxo : UTxO): Promise<{
+    orderId: ByteArray;
+    buyerPkh: PubKeyHash;
+    depositVal: Value;
+    orderVal: Value;
+    productVal: Value;
+    sellerPKH: PubKeyHash;
+    version: ByteArray;
+}> => {
+
+   const datumInfo = {
+       
+       orderId: new ByteArray(utxo.origOutput.datum.data.list[0].bytes),
+       buyerPkh: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[1]),
+       depositVal: Value.fromUplcData(utxo.origOutput.datum.data.list[2]),
+       orderVal: Value.fromUplcData(utxo.origOutput.datum.data.list[3]),
+       productVal: Value.fromUplcData(utxo.origOutput.datum.data.list[4]),
+       sellerPKH: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[5]),
+       version: new ByteArray(utxo.origOutput.datum.data.list[6].bytes)
+   }
+   return datumInfo
+}
+
 
 
 const getRefTokenUTXO = async (userPKH : string,

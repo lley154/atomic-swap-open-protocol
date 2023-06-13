@@ -95,7 +95,6 @@ usdaTokenAsset.addComponent(
 );
 
 const askedAssetValue = new Value(BigInt(0), usdaTokenAsset);
-
 const escrowConfig = new EscrowConfig(version,
                                       seller.pubKeyHash.hex,
                                       owner.pubKeyHash.hex);

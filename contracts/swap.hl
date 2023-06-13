@@ -63,8 +63,8 @@ func getUserPkh(userTokenVal: Value, txRefInputs: []TxInput) -> Option[PubKeyHas
                 refTokenDatum: Inline => {
 
                     refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
-                    print("refTokenData.userPkhBA: " + refTokenData.userPkhBA.show());
-                    print("refTokenData.userPkhBA.length: " + refTokenData.userPkhBA.length.show());
+                    //print("refTokenData.userPkhBA: " + refTokenData.userPkhBA.show());
+                    //print("refTokenData.userPkhBA.length: " + refTokenData.userPkhBA.length.show());
                     if (refTokenData.userPkhBA.length == 30) {
                         userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA.slice(2,30));
                         Option[PubKeyHash]::Some{userPkh}
@@ -181,7 +181,7 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         getUserPkh(sellerTokenVal, txRefInputs).switch {
                             sellerPKHLookup : Some => {
                                 print("sellerPkhLookup.some: " + sellerPKHLookup.some.show());
-                                print("sellerPKH: " + sellerPKH.show());
+                                //print("sellerPKH: " + sellerPKH.show());
                                 (sellerPKH == sellerPKHLookup.some).trace("SV2.6: ") 
                             }, 
                             else => { false.trace("SV2.7: ") } // could not find user pkh
@@ -195,7 +195,8 @@ func main(datumIn: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                             
                             (tx.value_locked_by(sHash) == (swapVal)).trace("SV3.1: ") &&
                             (tx.value_locked_by(eHash) == (escrowVal)).trace("SV3.2: ") &&
-                            (feeVal == txOutputsOwner.head.value).trace("SV3.3: ") 
+                            (tx.value_sent_to(red.buyerPkh).contains(red.buyerTokenVal)).trace("SV3.3: ") &&
+                            (feeVal == txOutputsOwner.head.value).trace("SV3.4: ") 
                         } else {
                             swapVal: Value = checkAdaVal(datumOutData.offeredAssetVal) + beaconVal + sellerTokenVal;
                             buyerVal: Value = checkAdaVal(offeredAssetDiffVal) + red.buyerTokenVal;
