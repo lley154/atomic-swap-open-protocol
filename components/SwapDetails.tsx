@@ -1,7 +1,24 @@
+import { useState } from 'react'
 
-const SwapInfo = ({ swapInfo } : any) => {
+const SwapInfo = ({ swapInfo, onUpdateSwap, onCloseSwap } : any) => {
 
     //console.log("swapInfo: ", swapInfo);
+
+    const [askedQty, setAskedQty] = useState('');
+    const [offeredQty, setOfferedQty] = useState('');
+
+    const onSubmitUpdate = (e : any) => {
+        
+        e.preventDefault() // prevent full page refresh
+        onUpdateSwap([askedQty,
+                      offeredQty])
+    }
+
+    const onSubmitClose = (e : any) => {
+        
+        e.preventDefault() // prevent full page refresh
+        onCloseSwap();
+    }
 
     return (
         <div style={{ width: '100%'}}>
@@ -29,6 +46,33 @@ const SwapInfo = ({ swapInfo } : any) => {
                 <tr><td>Version</td><td>{swapInfo.version}</td></tr>
             </tbody>
             </table>
+            <form onSubmit={onSubmitUpdate}>
+                <hr></hr>
+                <div>
+                    Asked Asset Price
+                    <br></br>
+                    <input name='askedQty' type='number' id='askedQty' placeholder='Enter Asked Token Quantity' 
+                    value={askedQty}
+                    onChange={(e) => setAskedQty(e.target.value)}
+                    />
+                    <p></p>                 
+                </div>
+                <div>
+                    Offered Asset Quantity
+                    <br></br>
+                    <input name='offeredQty' type='number' id='offeredQty' placeholder='Enter Offered Token Quantity' 
+                    value={offeredQty}
+                    onChange={(e) => setOfferedQty(e.target.value)}
+                    />
+                    <p></p>                 
+                </div>
+                <br></br>                   
+                <input type='submit' value='Update Swap'/>
+            </form>
+            <hr></hr>
+            <form onSubmit={onSubmitClose}>
+                <input type='submit' value='Close Swap'/>
+            </form>
         </div>
     )
 }
