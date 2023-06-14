@@ -167,24 +167,26 @@ const getSwapDatumInfo = async (utxo: UTxO): Promise<{ askedAssetValue: Value; o
 *              version: ByteArray}} 
 */
 const getEscrowDatumInfo = async (utxo : UTxO): Promise<{
-    orderId: ByteArray;
+    orderId: string;
     buyerPkh: PubKeyHash;
     depositVal: Value;
     orderVal: Value;
     productVal: Value;
     sellerPKH: PubKeyHash;
-    version: ByteArray;
+    version: string;
 }> => {
 
-   const datumInfo = {
+   
+    console.log("utxo: ", utxo);
+    const datumInfo = {
        
-       orderId: new ByteArray(utxo.origOutput.datum.data.list[0].bytes),
+       orderId: bytesToText(utxo.origOutput.datum.data.list[0].bytes),
        buyerPkh: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[1]),
        depositVal: Value.fromUplcData(utxo.origOutput.datum.data.list[2]),
        orderVal: Value.fromUplcData(utxo.origOutput.datum.data.list[3]),
        productVal: Value.fromUplcData(utxo.origOutput.datum.data.list[4]),
        sellerPKH: PubKeyHash.fromUplcData(utxo.origOutput.datum.data.list[5]),
-       version: new ByteArray(utxo.origOutput.datum.data.list[6].bytes)
+       version: bytesToText(utxo.origOutput.datum.data.list[6].bytes)
    }
    return datumInfo
 }

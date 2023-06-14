@@ -1,7 +1,13 @@
 
-const EscrowInfo = ({ escrowInfo } : any) => {
+const EscrowInfo = ({ escrowInfo, onApproveEscrow } : any) => {
 
     //console.log("escrowInfo: ", escrowInfo);
+
+    const onSubmit = (e : any) => {
+        
+        e.preventDefault() // prevent full page refresh
+        onApproveEscrow(escrowInfo.orderId);
+    }
 
     return (
         <div style={{ width: '100%'}}>
@@ -10,7 +16,7 @@ const EscrowInfo = ({ escrowInfo } : any) => {
             <table style={{ width: '100%' }}>
             <tbody>
                 <tr><td>Order Id</td><td>{escrowInfo.orderId}</td></tr>
-                <tr><td>Escrow Address</td><td>{escrowInfo.address}</td></tr>
+                <tr><td>Escrow Hash</td><td>{escrowInfo.escrowHash}</td></tr>
                 <tr><td>Asked Asset Minting Policy Hash</td><td>{escrowInfo.askedAsset}</td></tr>
                 <tr><td>Asked Asset Token Name</td><td>{escrowInfo.askedAssetTN === "" ? "lovelace" : escrowInfo.askedAssetTN}</td></tr>
                 <tr><td>Asked Asset Qty</td><td>{escrowInfo.askedAssetQty}</td></tr>
@@ -25,6 +31,9 @@ const EscrowInfo = ({ escrowInfo } : any) => {
                 <tr><td>Version</td><td>{escrowInfo.version}</td></tr>
             </tbody>
             </table>
+            <form onSubmit={onSubmit}>
+                <input type='submit' value='Approve Escrow'/>
+            </form>
         </div>
     )
 }

@@ -101,7 +101,7 @@ class SwapInfo {
 class EscrowInfo {
 
     public orderId : string
-    public address : string
+    public escrowHash : string
     public askedAssetMPH : string
     public askedAssetTN : string
     public askedAssetQty: number
@@ -118,7 +118,7 @@ class EscrowInfo {
     /**
      * Create EscrowInfo
      * @param {string} orderId
-     * @param {string} address
+     * @param {string} escrowHash
      * @param {string} askedAssetMPH 
      * @param {string} askedAssetTN
      * @param {string} askedAssetQty
@@ -135,7 +135,7 @@ class EscrowInfo {
 
     constructor(    
                 orderId : string,
-                address : string,
+                escrowHash : string,
                 askedAssetMPH : string,
                 askedAssetTN : string,
                 askedAssetQty: number,
@@ -149,7 +149,7 @@ class EscrowInfo {
                 depositAda : number,
                 version : string) {
         this.orderId = orderId;
-        this.address = address;
+        this.escrowHash = escrowHash;
         this.askedAssetMPH = askedAssetMPH;
         this.askedAssetTN = askedAssetTN;
         this.askedAssetQty = askedAssetQty;

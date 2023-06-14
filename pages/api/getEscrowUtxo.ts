@@ -49,8 +49,9 @@ export default async function handler(
                     BigInt(utxo.output_index),
                     new TxOutput(
                       Address.fromBech32(utxo.address),
-                      BlockfrostV0.parseValue(utxo),
-                      Datum.inline(new ByteArray(utxo.inline_datum))
+                      BlockfrostV0.parseValue(utxo.amount),
+                      Datum.inline(ListData.fromCbor(hexToBytes(utxo.inline_datum)))
+                      //Datum.inline(new ByteArray(utxo.inline_datum))
                     )
                 );
                 return utxoReturn;
