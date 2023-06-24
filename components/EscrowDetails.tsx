@@ -1,7 +1,4 @@
-
 const EscrowInfo = ({ escrowInfo, onApproveEscrow } : any) => {
-
-    //console.log("escrowInfo: ", escrowInfo);
 
     const onSubmit = (e : any) => {
         

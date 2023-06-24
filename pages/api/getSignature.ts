@@ -76,10 +76,6 @@ export default async function handler(
         
         const txCbor = req.body;
         const tx = Tx.fromCbor(hexToBytes(txCbor));
-      
-
-        // PUT YOUR BACK-END VALIDATION LOGIC HERE
-
         const txBodyCbor = bytesToHex((tx.body).toCbor());
         const txBody = Buffer.from(txBodyCbor, 'hex');
         const txHash = hash32(txBody);

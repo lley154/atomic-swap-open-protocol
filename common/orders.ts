@@ -1,11 +1,8 @@
 import { Assets,
          bytesToHex,
-         MintingPolicyHash,
          UTxO,
-         Value } from "@hyperionbt/helios";  
-         
+         Value } from "@hyperionbt/helios";         
 import { assert } from "../common/utils";
-
 import { SwapInfo } from "../common/types"
 
 export { calcOrderDetails }
@@ -15,7 +12,8 @@ export { calcOrderDetails }
  * Determine the quantity of a product a buyer can purchase
  * given the amount he is willing to pay.
  * @param {UTxO} utxo
- * @param {Value} swapAskedAssetValue
+ * @param {Value} 
+ * @param {SwapInfo}
  * @return {askedAssetVal: Value, 
  *            buyAssetVal: Value,
  *            offeredAssetVal: Value,
@@ -52,8 +50,6 @@ export default async function calcOrderDetails (utxo : UTxO,
    // Check if the askedAsset is lovelace
    if (askedAssetMP.length == 0) {
        askedAssetlovelace = true;
-       //askedAssetMPH "";
-       //askedAssetTN = lovelaceTN;
        askedAssetQty = askedAssetValue.lovelace;
    } else { 
        // The askedAsset is a native token and should only contain 1 MPH
@@ -72,8 +68,6 @@ export default async function calcOrderDetails (utxo : UTxO,
    // Check if the offeredAsset is lovelace
    if (offeredAssetMP.length == 0) {
        offeredAssetlovelace = true;
-       //offeredAssetMPH = offeredAssetMP;
-       //offeredAssetTN = lovelaceTN;
        offeredAssetQty = offeredAssetValue.lovelace;
    } else { 
        // The offeredAsset is a native token and should only contain 1 MPH
@@ -92,9 +86,7 @@ export default async function calcOrderDetails (utxo : UTxO,
    // Check if the swapAskedAsset is lovelace
    if (swapAskedAssetMP.length == 0) {
         swapAskedAssetlovelace = true;
-        //swapAskedAssetMPH = swapAskedAssetMP;
-        //swapAskedAssetTN = lovelaceTN;
-       swapAskedAssetQty = swapAskedAssetValue.lovelace;
+        swapAskedAssetQty = swapAskedAssetValue.lovelace;
    } else { 
        // The swapAskedAsset is a native token and should only contain 1 MPH
        assert(swapAskedAssetMP.length == 1);
@@ -110,14 +102,11 @@ export default async function calcOrderDetails (utxo : UTxO,
         askedAssetTN &&
         swapAskedAssetTN) {
         // Check that the askedAssets match
-        if (askedAssetMPH.hex === swapAskedAssetMPH.hex &&
-            bytesToHex(askedAssetTN) === bytesToHex(swapAskedAssetTN)) {
-            console.log("");
-            console.log("calcQtyToBuy: swap assets match");
-        } else {
+        if (!(askedAssetMPH.hex === swapAskedAssetMPH.hex &&
+            bytesToHex(askedAssetTN) === bytesToHex(swapAskedAssetTN))) {
             throw console.error("calcQtyToBuy: swap assets don't match")
         }
-   }
+    }
    
    var qtyToBuy : bigint;
    var qtyRemainder : bigint;

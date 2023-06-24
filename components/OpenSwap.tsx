@@ -1,6 +1,5 @@
 import { ChangeEvent, useState } from 'react'
 
-
 const openSwap = ({ onOpenSwap } : any) => {
 
     const [askedMPH, setAskedMPH] = useState('');
@@ -14,7 +13,6 @@ const openSwap = ({ onOpenSwap } : any) => {
     const onSubmit = (e : any) => {
         
         e.preventDefault() // prevent full page refresh
-        console.log("escrowEnabled: ", escrowEnabled);
         onOpenSwap([askedMPH,
                     askedTN,
                     askedQty,

@@ -1,11 +1,5 @@
-
-
-/**
- * @param { asset : string, quantity : string, escrowInfo : EscrowInfo }
- */
 const Item = ({ txHash, escrowInfo } : any) => {
 
-    //console.log("EscrowList: asset: ", asset);
     return(
         <tr>
             <td><input type="radio" id="escrow" name="txHash" value={txHash} onChange={escrowInfo}/>&nbsp;{txHash}</td>

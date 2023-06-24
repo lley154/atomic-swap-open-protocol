@@ -2,15 +2,9 @@ import { useState } from 'react'
 
 const updateSwap = ({ onUpdateSwap } : any) => {
 
-    const [version, setVersion] = useState('');
-    const [askedMPH, setAskedMPH] = useState('');
-    const [askedTN, setAskedTN] = useState('');
     const [askedQty, setAskedQty] = useState('');
-    const [offeredMPH, setOfferedMPH] = useState('');
-    const [offeredTN, setOfferedTN] = useState('');
     const [offeredQty, setOfferedQty] = useState('');
-    const [escrowEnabled, setEscrowEnabled] = useState('');
-
+ 
     const onSubmit = (e : any) => {
         
         e.preventDefault() // prevent full page refresh

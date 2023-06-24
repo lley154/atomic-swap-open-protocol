@@ -1,7 +1,3 @@
-
-/**
- * @param { mph : string, tn : string, qty : string }
- */
 const Item = ({ mph, tn, qty} : any) => {
      
     return(
@@ -14,8 +10,6 @@ const Item = ({ mph, tn, qty} : any) => {
 }
 
 const WalletInfo = ({ walletInfo } : any) => {
-
-    //console.log("walletInfo: ", walletInfo);
 
     return (
         <div style={{ width: '100%'}}>

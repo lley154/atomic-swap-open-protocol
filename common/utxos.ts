@@ -1,7 +1,6 @@
 import { 
     Address,
     Assets,
-    ByteArray,
     bytesToText, 
     MintingPolicyHash,
     PubKeyHash,
@@ -52,33 +51,6 @@ const tokenNameCount = async (tokenMph: MintingPolicyHash, tn : string,  value: 
  * Get the list of tokens names that match the minting policy
  * hash provided
  * @param {MintingPolicyHash} tokenMph
- * @param {string} tn
- * @param {UTxO} utxo
- * @returns {number} 
- */
-/*
-const tokenNameCount = async (tokenMph: MintingPolicyHash, tn : string,  utxo: UTxO): Promise<number> => {
-    let count = 0;
-        const mphs = utxo.value.assets.mintingPolicies;
-        for (const mph of mphs) {
-            if (mph.hex === tokenMph.hex) {
-                const tokenNames = utxo.value.assets.getTokenNames(mph);
-                for (const tokenName of tokenNames) {
-                    if (bytesToText(tokenName) === tn) {
-                        count += 1;
-                    }
-                }
-            }
-        }
-
-    return count;
-}
-*/
-
-/**
- * Get the list of tokens names that match the minting policy
- * hash provided
- * @param {MintingPolicyHash} tokenMph
  * @param {UTxO[]} utxos
  * @returns {string[]} 
  */
@@ -120,24 +92,6 @@ const tokenCount = async (tokenMph: MintingPolicyHash, utxos: UTxO[]): Promise<B
     return tokenCount;
 }
 
-
-/**
- * Get a dump of each mph and the corresponding tokens
- * @param {Assets} assets
- * @returns {[string, string, bigint]} mph, tn, qty
- */
-/*
-const tokenList = (assets: Assets) => {
-    let count = 0;
-    
-    assets.assets.forEach(([mph, tokens]) => {
-        tokens.forEach(([tokenName, _]) => {
-            count += 1
-        })
-    })
-    */
-
-
 /**
  * Return the askedAsset and offeredAsset inline Datum info.
  * @package
@@ -153,31 +107,26 @@ const getSwapDatumInfo = async (utxo: UTxO): Promise<{ askedAssetValue: Value; o
     return datumInfo
 }
 
-
-
 /**
  * Return the datum info attached to the UTXO locked at escrow contract
  * @param {UTxO} utxo
  * @returns {{ orderId: ByteArray,
  *             buyerPkh: PubKeyHash,
-*              depositVal: Value,
-*              orderVal: Value,
-*              productVal: Value,
-*              sellerPKH: PubKeyHash,
-*              version: ByteArray}} 
-*/
+ *             depositVal: Value,
+ *             orderVal: Value,
+ *             productVal: Value,
+ *             sellerPKH: PubKeyHash,
+ *             version: ByteArray}} 
+ */
 const getEscrowDatumInfo = async (utxo : UTxO): Promise<{
-    orderId: string;
-    buyerPkh: PubKeyHash;
-    depositVal: Value;
-    orderVal: Value;
-    productVal: Value;
-    sellerPKH: PubKeyHash;
-    version: string;
-}> => {
-
-   
-    console.log("utxo: ", utxo);
+                                        orderId: string;
+                                        buyerPkh: PubKeyHash;
+                                        depositVal: Value;
+                                        orderVal: Value;
+                                        productVal: Value;
+                                        sellerPKH: PubKeyHash;
+                                        version: string;   
+                                    }> => {
     const datumInfo = {
        
        orderId: bytesToText(utxo.origOutput.datum.data.list[0].bytes),
@@ -191,8 +140,15 @@ const getEscrowDatumInfo = async (utxo : UTxO): Promise<{
    return datumInfo
 }
 
-
-
+/**
+ * Return the reference input for a user token at the validator adddress.
+ * @package
+ * @param {string} userPKH
+ * @param {string} userTokenTN
+ * @param {SwapInfo} swapInfo
+ * @param {Boolean} optimize
+ * @returns {TxRefInput} 
+ */
 const getRefTokenUTXO = async (userPKH : string,
                                userTokenTN : string,
                                swapInfo : SwapInfo,
@@ -215,8 +171,6 @@ const getRefTokenUTXO = async (userPKH : string,
 
     // Only one reference UTXO with the matching seller MPH should exist
     if (utxo.origOutput.value.eq(userTokenValue)) { 
-        console.log("");
-        console.log("getRefTokenUTXO: reference user token UTXO found");
         const refUtxo = new TxRefInput(
             utxo.txId,
             utxo.utxoIdx,

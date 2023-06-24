@@ -1,13 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import { Address,
-         BlockfrostV0,
-         ConstrData,
-         Datum,
-         hexToBytes,
-         TxId,
-         TxOutput,
-         UTxO } from '@hyperionbt/helios';
 
 export default async function handler(
   req: NextApiRequest,
@@ -21,27 +13,11 @@ export default async function handler(
             projectId: apiKey
         });
     
-        console.log("getEscrows: addr: ", addr);
         const utxos = await API.addressesUtxos(addr);
-        console.log("getEscrows: utxos:", utxos);
-        //let escrows = [];
-
+        
         return utxos.map(obj => {
-
             const txHash = obj.tx_hash + "#" + obj.output_index.toString();
-            //escrows.push(txHash);
             return { txHash : txHash };
-            /*
-            return new UTxO(
-                TxId.fromHex(obj.tx_hash),
-                BigInt(obj.output_index),
-                new TxOutput(
-                    Address.fromBech32(addr),
-                    BlockfrostV0.parseValue(obj.amount),
-                    Datum.inline(ConstrData.fromCbor(hexToBytes(obj.inline_datum!))) // TODO error checking
-                )
-            );
-            */
         });
     }
 

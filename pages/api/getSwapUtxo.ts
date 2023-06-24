@@ -7,7 +7,6 @@ import {
     Datum,
     hexToBytes,
     ListData,
-    textToBytes,
     TxId,
     TxOutput,
     UTxO,
@@ -25,40 +24,25 @@ export default async function handler(
             projectId: apiKey
         });
 
-        console.log("getSwapUtxo: swapValidatorAddr: ", swapValidatorAddr);
-        console.log("getSwapUtxo: unit: ", unit);
-    
         const address = await API.addressesUtxosAsset(swapValidatorAddr, unit);
                                                       
-        console.log("address", address);
-
         if (address.length != 1) {
             throw console.error("getSwapUtxo: incorrect amount of swap utxos");
         }
     
-        //let valueAda = new Value(BigInt(address[0].amount[0].quantity));
         var utxoValue = new Value(BigInt(0));
         for (const asset of address[0].amount) {
             const mph = asset.unit.substring(0,56);
             if (mph === "lovelace") {
-                //const mph_lovelace = "";
-                //const tn = "";
-                console.log("lovelace");
-                //const qty = asset.quantity;
                 const assetValue = new Value(BigInt(asset.quantity));
                 utxoValue = utxoValue.add(assetValue);
-                //console.log("utxoValue: ", utxoValue.toSchemaJson());
             } else {
                 const tn = hexToBytes(asset.unit.substring(56));
-                console.log("tn: ", tn);
-                //const qty = asset.quantity;
                 const assetValue = new Value(BigInt(0), new Assets([[mph, [[tn, BigInt(asset.quantity)]]]]));
                 utxoValue = utxoValue.add(assetValue);
-                //console.log("assetValue: ", assetValue.toSchemaJson());
             }
             
         }
-        console.log("utxoValue: ", utxoValue.toSchemaJson());
         const utxo = new UTxO(
             TxId.fromHex(address[0].tx_hash),
             BigInt(address[0].output_index),
@@ -74,7 +58,6 @@ export default async function handler(
     try {
         // TODO - sanitize inputs
         const utxo = await getSwapUtxo(req.body.addr, req.body.unit)
-        console.log("getSwapUtxo: utxo", utxo.toCbor());
         res.status(200).send(utxo.toCbor());
     }
     catch (err) {

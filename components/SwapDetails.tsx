@@ -2,8 +2,6 @@ import { useState } from 'react'
 
 const SwapInfo = ({ swapInfo, onUpdateSwap, onCloseSwap } : any) => {
 
-    //console.log("swapInfo: ", swapInfo);
-
     const [askedQty, setAskedQty] = useState('');
     const [offeredQty, setOfferedQty] = useState('');
 

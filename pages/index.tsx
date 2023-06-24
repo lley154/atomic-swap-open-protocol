@@ -1,26 +1,24 @@
 import Head from 'next/head'
-import OpenSwap from '@/components/OpenSwap';
-import UpdateSwap from '@/components/UpdateSwap';
-import MintUserToken from '../components/MintUserToken';
-import MintProductToken from '../components/MintProductToken';
-import type { NextPage } from 'next'
 import styles from '../styles/Home.module.css'
+import type { NextPage } from 'next'
 import { useState, useEffect } from "react";
-import WalletInfo from '../components/WalletInfo';
-import SwapList from '../components/SwapList';
-import SwapDetails from '../components/SwapDetails';
-import EscrowList from '../components/EscrowList';
-import EscrowDetails from '../components/EscrowDetails';
 import AssetSwap from '../components/AssetSwap';
-import LoadingSpinner from '../components/LoadingSpinner';
-import UserTokenPolicy from '../contracts/userTokenPolicy.hl';
-import UserTokenValidator from '../contracts/userTokenValidator.hl';
-import SwapValidator from '../contracts/swap.hl';
 import BeaconPolicy from '../contracts/beacon.hl';
 import EscrowValidator from '../contracts/escrow.hl';
+import EscrowList from '../components/EscrowList';
+import EscrowDetails from '../components/EscrowDetails';
+import LoadingSpinner from '../components/LoadingSpinner';
+import MintUserToken from '../components/MintUserToken';
+import MintProductToken from '../components/MintProductToken';
+import OpenSwap from '../components/OpenSwap';
 import ProductTokenPolicy from '../contracts/productTokenPolicy.hl';
 import ProductTokenValidator from '../contracts/productTokenValidator.hl';
-
+import SwapValidator from '../contracts/swap.hl';
+import SwapList from '../components/SwapList';
+import SwapDetails from '../components/SwapDetails';
+import UserTokenPolicy from '../contracts/userTokenPolicy.hl';
+import UserTokenValidator from '../contracts/userTokenValidator.hl';
+import WalletInfo from '../components/WalletInfo';
 import { getEscrows,
          getEscrowInfo,
          getEscrowUtxo,
@@ -30,15 +28,11 @@ import { getEscrows,
          getSwaps,
          signSubmitTx,
          submitTx } from '../common/network';
-
 import { getEscrowDatumInfo,
          getRefTokenUTXO,
          getTokenNames } from '../common/utxos';
-
 import assert from '../common/utils';
-
 import calcOrderDetails from '../common/orders';
-
 import {
   Assets,
   Address,
@@ -49,18 +43,16 @@ import {
   config,
   Datum,
   hexToBytes,
+  MintingPolicyHash,
   NetworkParams,
-  Value,
+  PubKeyHash,
   textToBytes,
   TxOutput,
   Tx,
-  WalletHelper,
-  Program,
-  PubKeyHash,
-  MintingPolicyHash,
   UTxO,
-  ValidatorHash} from "@hyperionbt/helios";
-
+  Value,
+  WalletHelper
+  } from "@hyperionbt/helios";
 
 declare global {
   interface Window {
@@ -72,7 +64,7 @@ declare global {
 config.AUTO_SET_VALIDITY_RANGE = false;
 
 // Global variables
-const version = "3.6";
+const version = "3.7";
 const optimize = false;
 const network = "preprod";
 const userTokenName = "UT";
@@ -82,36 +74,27 @@ const minChangeAmt: bigint = BigInt(1_000_000); // minimum lovelace needed to be
 const ownerPKH = new PubKeyHash(process.env.NEXT_PUBLIC_OWNER_PKH as string);
 const serviceFee: bigint = BigInt(1_000_000); // service fee for a swap tx
 const depositAda: bigint = BigInt(5_000_000); // buyer deposit for escrow
-
+const ttl : number = 5; // Time to live validity interval
 
 // Compile the Beacon minting script
 const beaconProgram = new BeaconPolicy();
 beaconProgram.parameters = {["VERSION"] : version};
 beaconProgram.parameters = {["OWNER_PKH"] : ownerPKH.hex};
-
 const beaconCompiledProgram = beaconProgram.compile(optimize);
 const beaconMPH = beaconCompiledProgram.mintingPolicyHash;
-
 
 export async function getServerSideProps() {
 
   try {
-    
     // Get swap address(es) using beacon MPH
-    //console.log("beaconMPH: ", beaconMPH.hex);
     const swaps = await getSwaps(beaconMPH);
-    //console.log("swapInfo: ", JSON.stringify(swapInfo).toString());
     if (swaps.length > 0 ) {
       return { props: { noSwaps : false, swaps : JSON.stringify(swaps).toString()} };
     } else {
       return { props: { noSwaps : true, swaps : JSON.stringify(swaps).toString()} }
     }
-    
-    //return { props: {} };
-
   } catch (err) {
     console.error("getServerSideProps: No swaps found");
-    //console.error('getServerSideProps error: ', err);
   } 
   // No swaps found
   return { props: { noSwaps : true } };
@@ -119,25 +102,20 @@ export async function getServerSideProps() {
 
 const Home: NextPage = (props : any) => {
 
-  //console.log("props: ", props);
-  //const swapsList = JSON.parse(props);
-  //console.log("beaconProgram.parameters: ", beaconProgram.parameters);
+  const [escrowInfo, setEscrowInfo] = useState<undefined | any>(undefined);
+  const [escrowList, setEscrowList] = useState<undefined | any>(undefined);
+  const [isLoading, setIsLoading] = useState(false);
+  const [swapList, setSwapList] = useState<undefined | any>(undefined);
+  const [swapInfo, setSwapInfo] = useState<undefined | any>(undefined);
+  const [tx, setTx] = useState({ txId : '' });
   const [walletInfo, setWalletInfo] = useState({ pkh : '', balance : []});
   const [walletIsEnabled, setWalletIsEnabled] = useState(false);
   const [whichWalletSelected, setWhichWalletSelected] = useState(undefined);
   const [walletAPI, setWalletAPI] = useState<undefined | any>(undefined);
   const [walletHelper, setWalletHelper] = useState<undefined | any>(undefined);
-  const [isLoading, setIsLoading] = useState(false);
-  const [tx, setTx] = useState({ txId : '' });
-  const [swapList, setSwapList] = useState<undefined | any>(undefined);
-  const [swapInfo, setSwapInfo] = useState<undefined | any>(undefined);
-  const [escrowList, setEscrowList] = useState<undefined | any>(undefined);
-  const [escrowInfo, setEscrowInfo] = useState<undefined | any>(undefined);
-
-
+  
   useEffect(() => {
     const checkWallet = async () => {
-
       setWalletIsEnabled(await checkIfWalletFound());
     }
     checkWallet();
@@ -154,7 +132,6 @@ const Home: NextPage = (props : any) => {
 
   useEffect(() => {
     const updateWalletInfo = async () => {
-
         if (walletIsEnabled) {
             const _pkh = await getPkh() as string;
             const _balance = await getBalance() as [];
@@ -170,7 +147,6 @@ const Home: NextPage = (props : any) => {
 
   useEffect(() => {
     const updateSwapList = async () => {
-        console.log("useEffect: props.noSwaps: ", props);
         if (!props.noSwaps) {
             setSwapList(JSON.parse(props.swaps));
         }
@@ -180,22 +156,21 @@ const Home: NextPage = (props : any) => {
 
   useEffect(() => {
       const updateEscrowList = async () => {
-      console.log("useEffect: updateEscrowList");
-      const changeAddr = await walletHelper.changeAddress;
+      //const changeAddr = await walletHelper.changeAddress;
 
       // Create the escrow script
       const escrowProgram = new EscrowValidator();
       escrowProgram.parameters = {["VERSION"] : version};
-      escrowProgram.parameters = {["SELLER_PKH"] : changeAddr.pubKeyHash.hex};
+      escrowProgram.parameters = {["SELLER_PKH"] : hexToBytes(swapInfo.sellerPKH)};
       escrowProgram.parameters = {["OWNER_PKH"] : ownerPKH.hex};
       const escrowCompiledProgram = escrowProgram.compile(optimize);
       const escrowValAddr = Address.fromHashes(escrowCompiledProgram.validatorHash);
 
       try {
-        console.log("escrowValAddr: ", escrowValAddr);
-        const escrows = await getEscrows(escrowValAddr);
-        console.log("escrows: ", escrows);
-        setEscrowList(escrows);
+        if (swapInfo.escrowEnabled) {
+          const escrows = await getEscrows(escrowValAddr);
+          setEscrowList(escrows);
+        }
       } catch (e) {
         console.error("no escrows found");
       }
@@ -203,7 +178,7 @@ const Home: NextPage = (props : any) => {
     if (walletAPI) {  // avoid rendering on first render
       updateEscrowList();
     }
-  }, [walletAPI]);
+  }, [swapInfo]);
 
   // user selects what wallet to connect to
   const handleWalletSelect = (obj : any) => {
@@ -234,6 +209,7 @@ const Home: NextPage = (props : any) => {
             const walletHelper = new WalletHelper(walletAPI);
             setWalletHelper(walletHelper);
             setWalletAPI(walletAPI);
+
           } else if (walletChoice === "eternl") {
             const handle: Cip30Handle = await window.cardano.eternl.enable();
             const walletAPI = new Cip30Wallet(handle);
@@ -247,18 +223,18 @@ const Home: NextPage = (props : any) => {
   }
 
   const getPkh = async () => {
+
     const changeAddr = await walletHelper.changeAddress;
     return changeAddr.pubKeyHash.hex;
   }
 
-
   const getBalance = async () => {
+
     let walletBalance = [];
     try {
         const balanceAmountValue  = await walletHelper.calcBalance();
         const adaAmount = BigInt(balanceAmountValue.lovelace);
         walletBalance.push({ mph: "", tn: "lovelace", qty: adaAmount.toLocaleString()});
-        //console.log("getBalance: ", balanceAmountValue.assets.dump());
         const values = balanceAmountValue.assets.dump();
         Object.entries(values).forEach(([keyMph, valueMph]) => {
           Object.entries(valueMph as {}).forEach(([tokenName, tokenQty]) => {            
@@ -274,34 +250,23 @@ const Home: NextPage = (props : any) => {
     }
   }
 
-  // user selects the swap for more info
+  // Get swap info for a swap that has been selected
   const updateSwapDetails  = async (params : any) => {
 
     const beaconAsset = params.target.value;
-    //console.log("updateSwapDetail: ", beaconAsset);
     const swapInfo = await getSwapInfo(beaconAsset);
-
     setSwapInfo(swapInfo);
-
   }
 
-  // user selects the escrow for more info
+  // Get escrow info for an escaroe that has been selected
   const updateEscrowDetails  = async (params : any) => {
 
     const txHash = params.target.value;
     const txId = txHash.split('#')[0];
     const txIdx = txHash.split('#')[1];
-
-    //console.log("updateSwapDetail: ", beaconAsset);
-    console.log("txId: ", txId);
-    console.log("txIdx: ", txIdx);
-
     const escrowInfo = await getEscrowInfo(beaconMPH.hex, txId, txIdx);
-
     setEscrowInfo(escrowInfo);
-
   }
-
 
   const mintUserToken = async (params : any) => {
 
@@ -313,10 +278,8 @@ const Home: NextPage = (props : any) => {
     const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));
 
     try {
-
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
-
       const networkParamsPreview = await getNetworkParams(network);
       const networkParams = new NetworkParams(networkParamsPreview);
 
@@ -328,9 +291,6 @@ const Home: NextPage = (props : any) => {
       const userTokenValCompiledProgram = userTokenValProgram.compile(optimize);  
       const userTokenValHash = userTokenValCompiledProgram.validatorHash;
 
-      console.log("mintUserToken: userTokenValHash: ", userTokenValHash);
-
-
       // Compile the user token policy script
       const userTokenPolicyProgram = new UserTokenPolicy();
       userTokenPolicyProgram.parameters = {["VERSION"] : version};
@@ -339,18 +299,13 @@ const Home: NextPage = (props : any) => {
       userTokenPolicyProgram.parameters = {["MIN_ADA"] : minAda};
       const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
       const userTokenMPH = userTokenPolicyCompiledProgram.mintingPolicyHash;
-      console.log("IR: ", userTokenPolicyCompiledProgram.toString());
-      //console.log("IR: ", userTokenPolicyProgram.prettyIR());
-      //const test = userTokenPolicyProgram as Program;
-      //console.log("IR: ", test.prettyIR())
-
+  
       // Get the UTxOs in User wallet
       const utxos = await walletHelper.pickUtxos(minUTXOVal);
 
       // Start building the transaction
       const tx = new Tx();
 
-      //console.log("utxos", utxos);
       // Add the user UTXOs as inputs
       tx.addInputs(utxos[0]);
 
@@ -360,9 +315,9 @@ const Home: NextPage = (props : any) => {
       // Construct the user token
       const now = new Date()
       const before = new Date(now.getTime())
-      before.setMinutes(now.getMinutes() - 5)
+      before.setMinutes(now.getMinutes() - ttl)
       const after = new Date(now.getTime())
-      after.setMinutes(now.getMinutes() + 5)
+      after.setMinutes(now.getMinutes() + ttl)
       const userTokenTN = textToBytes(userTokenName + "|" + now.getTime().toString());
       const userTokens: [number[], bigint][] = [[userTokenTN, BigInt(2)]];
 
@@ -379,12 +334,11 @@ const Home: NextPage = (props : any) => {
           userTokenPolicyRedeemer
       )
 
-      // Create 1 user token
+      // Create a user token
       const userToken: [number[], bigint][] = [[userTokenTN, BigInt(1)]];
       const userTokenAsset = new Assets([[userTokenMPH, userToken]]);
       const userTokenValue = new Value(BigInt(minAda), userTokenAsset);
-      //console.log("userTokenValue: ", userTokenValue.toSchemaJson());
-
+      
       // Construct the reference token datum
       const userTokenDatum = new (userTokenValProgram.types.Datum)(
         changeAddr.pubKeyHash.hex
@@ -450,7 +404,6 @@ const Home: NextPage = (props : any) => {
     const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));
 
     try {
-
       const productName = params[0] as string;
       const productDescription = params[1] as string;
       const productImg = params[2] as string;
@@ -471,8 +424,6 @@ const Home: NextPage = (props : any) => {
        const productTokenValCompiledProgram = productTokenValProgram.compile(optimize);  
        const productTokenValHash = productTokenValCompiledProgram.validatorHash;
 
-       console.log("mintProductToken: productTokenValHash ", productTokenValHash);
- 
       // Compile the product token policy script
       const productTokenPolicyProgram = new ProductTokenPolicy();
       productTokenPolicyProgram.parameters = {["VERSION"] : version};
@@ -488,7 +439,6 @@ const Home: NextPage = (props : any) => {
       // Start building the transaction
       const tx = new Tx();
 
-      //console.log("utxos", utxos);
       // Add the user UTXOs as inputs
       tx.addInputs(utxos[0]);
 
@@ -498,9 +448,9 @@ const Home: NextPage = (props : any) => {
       // Construct the product token
       const now = new Date()
       const before = new Date(now.getTime())
-      before.setMinutes(now.getMinutes() - 5)
+      before.setMinutes(now.getMinutes() - ttl)
       const after = new Date(now.getTime())
-      after.setMinutes(now.getMinutes() + 5)
+      after.setMinutes(now.getMinutes() + ttl)
       const productTN = productName.slice(0,31);  // truncate to 32 chars 
       const productTokenTN = textToBytes(productTN);
       const productTokens: [number[], bigint][] = [[productTokenTN, BigInt(qty)]];
@@ -520,12 +470,10 @@ const Home: NextPage = (props : any) => {
           productTokenPolicyRedeemer
       )
 
-      // Create 1 product reference token
+      // Create a product reference token
       const productToken: [number[], bigint][] = [[productTokenTN, BigInt(1)]];
       const productTokenAsset = new Assets([[productTokenMPH, productToken]]);
       const productTokenValue = new Value(BigInt(minAda), productTokenAsset);
-      //console.log("productTokenValue: ", productTokenValue.toSchemaJson());
-
       
       // Create the output for the product reference token
       tx.addOutput(new TxOutput(
@@ -603,7 +551,6 @@ const Home: NextPage = (props : any) => {
       const offeredTN = textToBytes(params[4] as string);
       const offeredQty = params[5] as string;
       const escrowEnabled = params[6] as boolean;
-      console.log("open swap: escrowEnabled: ", escrowEnabled);
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));    
 
       // Re-enable wallet API since wallet account may have been changed
@@ -612,9 +559,9 @@ const Home: NextPage = (props : any) => {
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
 
+      // Get network parameters
       const networkParamsPreview = await getNetworkParams(network);
       const networkParams = new NetworkParams(networkParamsPreview);
-
 
       // Compile the user token validator script
       const userTokenValProgram = new UserTokenValidator();
@@ -680,10 +627,6 @@ const Home: NextPage = (props : any) => {
       swapProgram.parameters = {["DEPOSIT_ADA"] : depositAda};
       const swapCompiledProgram = swapProgram.compile(optimize); 
       
-      console.log("updateSwap: swapValHash.hex: ", swapCompiledProgram.validatorHash.hex);
-      console.log("openSwap: address: ", Address.fromHashes(swapCompiledProgram.validatorHash).toBech32());
-      console.log("openSwap: parameters: ", swapProgram.parameters);
-     
       // Start building the transaction
       const tx = new Tx();
 
@@ -755,7 +698,6 @@ const Home: NextPage = (props : any) => {
                           .add(beaconValue)
                           .add(sellerTokenValue);
   
-      //console.log("openSwap: swapValue: ", swapValue.toSchemaJson());
       tx.addOutput(new TxOutput(
           Address.fromHashes(swapCompiledProgram.validatorHash),
           swapValue,
@@ -765,9 +707,9 @@ const Home: NextPage = (props : any) => {
       // Construct the time validity interval
       const now = new Date();
       const before = new Date(now.getTime());
-      before.setMinutes(now.getMinutes() - 5);
+      before.setMinutes(now.getMinutes() - ttl);
       const after = new Date(now.getTime());
-      after.setMinutes(now.getMinutes() + 5);
+      after.setMinutes(now.getMinutes() + ttl);
  
       // Set a valid time interval
       tx.validFrom(before);
@@ -831,19 +773,11 @@ const Home: NextPage = (props : any) => {
     }
   }
 
-  
-/**
- * Update swap askedAsset and/or offeredAsset
- * @package
- * @param {[]} params
- */
 const updateSwap = async (params : any) => {
     
   setIsLoading(true);
-  //console.log("params: ", params);
-  
-  try {
 
+  try {
       const askedQty = params[0] as string;
       const offeredQty = params[1] as string;
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));    
@@ -854,10 +788,9 @@ const updateSwap = async (params : any) => {
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
 
+      // Get network parameters
       const networkParamsPreview = await getNetworkParams(network);
       const networkParams = new NetworkParams(networkParamsPreview);
-
-      //console.log("updateSwap: swapInfo.askedMPH: ", swapInfo.askedMPH);
 
       // Compile the swap script
       const swapProgram = new SwapValidator();
@@ -880,10 +813,6 @@ const updateSwap = async (params : any) => {
       const swapCompiledProgram = swapProgram.compile(optimize);
       const swapValHash = swapCompiledProgram.validatorHash;
 
-      console.log("updateSwap: swapValHash.hex: ", swapValHash.hex);
-      console.log("updateSwap: address: ", Address.fromHashes(swapCompiledProgram.validatorHash).toBech32());
-      console.log("updateSwap: parameters: ", swapProgram.parameters);
-    
       // Now we are able to get the UTxOs in Seller wallet
       const utxos = await walletHelper.pickUtxos(minUTXOVal);
 
@@ -896,7 +825,6 @@ const updateSwap = async (params : any) => {
       // Add the script as a witness to the transaction
       tx.attachScript(swapCompiledProgram);
 
-      console.log("beaconMPH", swapInfo.beaconMPH);
       // Get the UTXO that has the swap datum
       const swapUtxo = await getSwapUtxo(Address.fromHashes(swapValHash), MintingPolicyHash.fromHex(swapInfo.beaconMPH));
 
@@ -937,8 +865,7 @@ const updateSwap = async (params : any) => {
       }
 
       askedAssetValue.assertAllPositive();
-      console.log("askedQty: ", askedQty);
-      console.log("askedAssetValue: ", askedAssetValue.toSchemaJson());
+      
       // Construct the swap datum
       const swapDatum = new (swapProgram.types.Datum)(
           askedAssetValue,
@@ -969,9 +896,9 @@ const updateSwap = async (params : any) => {
       // Construct the time validity interval
       const now = new Date();
       const before = new Date(now.getTime());
-      before.setMinutes(now.getMinutes() - 5);
+      before.setMinutes(now.getMinutes() - ttl);
       const after = new Date(now.getTime());
-      after.setMinutes(now.getMinutes() + 5);
+      after.setMinutes(now.getMinutes() + ttl);
  
       // Set a valid time interval
       tx.validFrom(before);
@@ -1032,18 +959,11 @@ const updateSwap = async (params : any) => {
     }
 }
 
-/**
- * Swap Assets for a given quantity
- * @package
- * @param {[]} params
- */
 const assetSwap = async (params : any) => {
 
   try {
-      
       setIsLoading(true);
-      console.log("params: ", params);
-  
+      
       const buyQty = params[0] as number;
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt + serviceFee));    
 
@@ -1077,14 +997,8 @@ const assetSwap = async (params : any) => {
       const swapCompiledProgram = swapProgram.compile(optimize);
       const swapValHash = swapCompiledProgram.validatorHash;
 
-      console.log("assetSwap: swapValHash.hex: ", swapValHash.hex);
-      console.log("assetSwap: address: ", Address.fromHashes(swapCompiledProgram.validatorHash).toBech32());
-      console.log("assetSwap: parameters: ", swapProgram.parameters);
-      
       // Now we are able to get the UTxOs in Buyer Wallet
       const utxos = await await walletHelper.pickUtxos(minUTXOVal);
-
-      console.log("assetSwap: utxos: ", utxos);
 
       // Start building the transaction
       const tx = new Tx();
@@ -1107,7 +1021,6 @@ const assetSwap = async (params : any) => {
       const buyerTokenTN = await getTokenNames(MintingPolicyHash.fromHex(swapInfo.userTokenMPH), utxosAll);
 
       // Check that there exist only 1 user token
-      console.log("buyerTokenTN: ", buyerTokenTN);
       assert(buyerTokenTN.length == 1);
 
       // Construct the Buyer Token value
@@ -1115,7 +1028,6 @@ const assetSwap = async (params : any) => {
       const buyerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapInfo.userTokenMPH), buyerToken]]);
       const buyerTokenValue = new Value(BigInt(0), buyerTokenAsset);
 
-      console.log("beaconMPH", swapInfo.beaconMPH);
       // Get the UTXO that has the swap datum
       const swapUtxo = await getSwapUtxo(Address.fromHashes(swapValHash), MintingPolicyHash.fromHex(swapInfo.beaconMPH));
 
@@ -1148,12 +1060,6 @@ const assetSwap = async (params : any) => {
       
       // Calc the amount of products remaining
       const orderDetails = await calcOrderDetails(swapUtxo, swapAskedAssetValue, swapInfo);
-
-      console.log("swapAsset: askedAssetVal", orderDetails.askedAssetVal.dump());
-      console.log("swapAsset: buyAssetVal", orderDetails.buyAssetVal.dump());
-      console.log("swapAsset: changeAssetVal", orderDetails.changeAssetVal.dump());
-      console.log("swapAsset: offeredAssetVal", orderDetails.offeredAssetVal.dump());
-      console.log("swapAsset: noChange", orderDetails.noChange);
 
       // Construct the swap datum
       const swapDatum = new (swapProgram.types.Datum)(
@@ -1190,7 +1096,6 @@ const assetSwap = async (params : any) => {
 
         // Create the output to send the askedAsset to the seller address
         // and check if asked Asset is in lovelace
-        console.log("assetSwap: swapAskedAssetValue: ", swapAskedAssetValue);
         if (swapAskedAssetValue.lovelace == BigInt(0)) {
             if (orderDetails.noChange) {
                 tx.addOutput(new TxOutput(
@@ -1217,9 +1122,6 @@ const assetSwap = async (params : any) => {
             }
         }
 
-        
-        console.log("swapAsset:orderDetails.buyAssetVal: ", orderDetails.buyAssetVal.toSchemaJson());
-        
         // Create the output that goes to the buyer
         tx.addOutput(new TxOutput(
             changeAddr,
@@ -1346,9 +1248,9 @@ const assetSwap = async (params : any) => {
       // Construct the time validity interval
       const now = new Date();
       const before = new Date(now.getTime());
-      before.setMinutes(now.getMinutes() - 5);
+      before.setMinutes(now.getMinutes() - ttl);
       const after = new Date(now.getTime());
-      after.setMinutes(now.getMinutes() + 60);
+      after.setMinutes(now.getMinutes() + ttl);
  
       // Set a valid time interval
       tx.validFrom(before);
@@ -1408,20 +1310,11 @@ const assetSwap = async (params : any) => {
     }
   }
   
-/**
- * Approve and release the order in the escrow smart contract
- * @param {string} params
- */
 const approveEscrow = async (params : any) => {
 
   try {
-      
       setIsLoading(true);
-      console.log("params: ", params);
-  
       const orderId = params as string;
-      //const escrowHash = params[1] as string;
-      //const address = ValidatorHash.fromHex(escrowHash);
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt + serviceFee));    
 
       // Re-enable wallet API since wallet account may have been changed
@@ -1430,6 +1323,7 @@ const approveEscrow = async (params : any) => {
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
 
+      // Get network parameters
       const networkParamsPreview = await getNetworkParams(network);
       const networkParams = new NetworkParams(networkParamsPreview);
 
@@ -1442,14 +1336,9 @@ const approveEscrow = async (params : any) => {
        escrowProgram.parameters = {["SELLER_PKH"] : escrowInfo.sellerPKH};
        escrowProgram.parameters = {["OWNER_PKH"] : escrowInfo.ownerPKH};
        const escrowCompiledProgram = escrowProgram.compile(optimize);
-       const escrowValHash = escrowCompiledProgram.validatorHash;
        const escrowValAddr = Address.fromHashes(escrowCompiledProgram.validatorHash);
 
-       console.log("escrowSwap: swapValHash.hex: ", escrowValHash.hex);
-       console.log("esrowSwap: address: ", Address.fromHashes(escrowCompiledProgram.validatorHash).toBech32());
-       console.log("escrowSwap: parameters: ", escrowProgram.parameters);
-       
-      // Start building the transaction
+       // Start building the transaction
       const tx = new Tx();
 
       // Add the seller UTXOs as inputs
@@ -1485,9 +1374,9 @@ const approveEscrow = async (params : any) => {
       // Construct the time validity interval
       const now = new Date();
       const before = new Date(now.getTime());
-      before.setMinutes(now.getMinutes() - 5);
+      before.setMinutes(now.getMinutes() - ttl);
       const after = new Date(now.getTime());
-      after.setMinutes(now.getMinutes() + 60);
+      after.setMinutes(now.getMinutes() + ttl);
  
       // Set a valid time interval
       tx.validFrom(before);
@@ -1531,16 +1420,11 @@ const approveEscrow = async (params : any) => {
     }
   }
 
-  /**
- * close swap 
- * @package
- */
 const closeSwap = async () => {
     
   setIsLoading(true);
 
   try {
-
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));    
 
       // Re-enable wallet API since wallet account may have been changed
@@ -1549,10 +1433,9 @@ const closeSwap = async () => {
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
 
+      // Get network parameters
       const networkParamsPreview = await getNetworkParams(network);
       const networkParams = new NetworkParams(networkParamsPreview);
-
-      //console.log("updateSwap: swapInfo.askedMPH: ", swapInfo.askedMPH);
 
       // Compile the swap script
       const swapProgram = new SwapValidator();
@@ -1575,10 +1458,6 @@ const closeSwap = async () => {
       const swapCompiledProgram = swapProgram.compile(optimize);
       const swapValHash = swapCompiledProgram.validatorHash;
 
-      console.log("updateSwap: swapValHash.hex: ", swapValHash.hex);
-      console.log("updateSwap: address: ", Address.fromHashes(swapCompiledProgram.validatorHash).toBech32());
-      console.log("updateSwap: parameters: ", swapProgram.parameters);
-    
       // Now we are able to get the UTxOs in Seller wallet
       const utxos = await walletHelper.pickUtxos(minUTXOVal);
 
@@ -1591,7 +1470,6 @@ const closeSwap = async () => {
       // Add the script as a witness to the transaction
       tx.attachScript(swapCompiledProgram);
 
-      console.log("beaconMPH", swapInfo.beaconMPH);
       // Get the UTXO that has the swap datum
       const swapUtxo = await getSwapUtxo(Address.fromHashes(swapValHash), MintingPolicyHash.fromHex(swapInfo.beaconMPH));
 
@@ -1617,40 +1495,12 @@ const closeSwap = async () => {
       // Confirm that the updated offeredAssetValue is positive
       offeredAssetValue.assertAllPositive();
 
-      /*
-
-      // Construct the asked asset value
-      var askedAssetValue;
-      if (swapInfo.askedAssetMPH === "") {
-        askedAssetValue = new Value(BigInt(askedQty));
-      } else {
-        const askedAsset = new Assets();
-        askedAsset.addComponent(
-          MintingPolicyHash.fromHex(swapInfo.askedAssetMPH),
-          textToBytes(swapInfo.askedAssetTN),
-          BigInt(askedQty)
-        );
-        askedAssetValue = new Value(BigInt(0), askedAsset);
-      }
-
-      askedAssetValue.assertAllPositive();
-      console.log("askedQty: ", askedQty);
-      console.log("askedAssetValue: ", askedAssetValue.toSchemaJson());
-      // Construct the swap datum
-      const swapDatum = new (swapProgram.types.Datum)(
-          askedAssetValue,
-          offeredAssetValue
-        )
-
-      */
       // Add the beacon minting script as a witness to the transaction
       tx.attachScript(beaconCompiledProgram);
 
-      // Construct the Beacon value
+      // Construct the Beacon token
       const beaconToken : [number[], bigint][] = [[hexToBytes(swapInfo.beaconTN), BigInt(-1)]];
-      const beaconAsset = new Assets([[MintingPolicyHash.fromHex(swapInfo.beaconMPH), beaconToken]]);
-      const beaconValue = new Value(BigInt(0), beaconAsset);
-
+   
       // Create an Beacon Minting Init Redeemer because we must always send a Redeemer with
       // a plutus script transaction even if we don't actually use it.
       const beaconRedeemer = (new beaconProgram.types.Redeemer.Burn())._toUplcData();
@@ -1662,7 +1512,6 @@ const closeSwap = async () => {
           beaconRedeemer
       )
 
-
       // Construct the Seller Token value
       const sellerToken : [number[], bigint][]  = [[textToBytes(swapInfo.sellerTokenTN), BigInt(1)]];
       const sellerTokenAsset = new Assets([[MintingPolicyHash.fromHex(swapInfo.userTokenMPH), sellerToken]]);
@@ -1673,25 +1522,12 @@ const closeSwap = async () => {
         offeredAssetValue.add(sellerTokenValue)
       ));
 
-      /*
-      const swapValue = (new Value(minAda))
-                          .add(offeredAssetValue)
-                          .add(beaconValue)
-                          .add(sellerTokenValue);
-
-      tx.addOutput(new TxOutput(
-          Address.fromHashes(swapCompiledProgram.validatorHash),
-          swapValue,
-          Datum.inline(swapDatum)
-      ));
-      */
-
       // Construct the time validity interval
       const now = new Date();
       const before = new Date(now.getTime());
-      before.setMinutes(now.getMinutes() - 5);
+      before.setMinutes(now.getMinutes() - ttl);
       const after = new Date(now.getTime());
-      after.setMinutes(now.getMinutes() + 5);
+      after.setMinutes(now.getMinutes() + ttl);
  
       // Set a valid time interval
       tx.validFrom(before);
@@ -1753,7 +1589,6 @@ const closeSwap = async () => {
     }
   }
 
-
   return (
     <div className={styles.container}>
       <Head>
@@ -1787,19 +1622,17 @@ const closeSwap = async () => {
             <p>Please wait until the transaction is confirmed on the blockchain and reload this page before doing another transaction</p>
           </div>}
           {walletIsEnabled && !tx.txId && swapList && <div className={styles.border}><SwapList swapList={swapList} onSwapInfo={updateSwapDetails}/></div>}
-          {walletIsEnabled && !tx.txId && escrowList && <div className={styles.border}><EscrowList escrowList={escrowList} onEscrowInfo={updateEscrowDetails}/></div>}
           {walletIsEnabled && !tx.txId && swapInfo && <div className={styles.border}><SwapDetails swapInfo={swapInfo} onUpdateSwap={updateSwap} onCloseSwap={closeSwap}/></div>}
+          {walletIsEnabled && !tx.txId && escrowList && <div className={styles.border}><EscrowList escrowList={escrowList} onEscrowInfo={updateEscrowDetails}/></div>}
           {walletIsEnabled && !tx.txId && escrowInfo && <div className={styles.border}><EscrowDetails escrowInfo={escrowInfo} onApproveEscrow={approveEscrow}/></div>}
           {walletIsEnabled && !tx.txId && swapInfo && <div className={styles.border}><AssetSwap onAssetSwap={assetSwap} swapInfo={swapInfo}/></div>}
           {walletIsEnabled && !tx.txId && <div className={styles.border}><MintUserToken onMintUserToken={mintUserToken}/></div>}
           {walletIsEnabled && !tx.txId && <div className={styles.border}><MintProductToken onMintProductToken={mintProductToken}/></div>}
           {walletIsEnabled && !tx.txId && <div className={styles.border}><OpenSwap onOpenSwap={openSwap}/></div>}
           
-
       </main>
 
       <footer className={styles.footer}>
-
       </footer>
     </div>
   )

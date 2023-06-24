@@ -3,18 +3,14 @@ import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 
 import {
     Address,
-    Assets,
     BlockfrostV0,
-    ByteArray,
     bytesToText,
     Datum,
     hexToBytes,
     ListData,
-    textToBytes,
     TxId,
     TxOutput,
-    UTxO,
-    Value } from "@hyperionbt/helios";
+    UTxO } from "@hyperionbt/helios";
 
 export default async function handler(
   req: NextApiRequest,
@@ -31,8 +27,6 @@ export default async function handler(
     
         const utxos = await API.addressesUtxos(escrowValAddr);
                                                       
-        console.log("getEscrowUtxo: utxos", utxos);
-
         if (utxos.length < 1) {
             throw console.error("getEscrowUtxo: can't find any escrow utxos");
         }
@@ -43,7 +37,6 @@ export default async function handler(
             }
             const datum = Datum.inline(ListData.fromCbor(hexToBytes(utxo.inline_datum)));
             if (bytesToText(datum.data.list[0].bytes) == orderId) {
-                console.log("getEscrowUtxo: orderId found", orderId);
                 const utxoReturn = new UTxO(
                     TxId.fromHex(utxo.tx_hash),
                     BigInt(utxo.output_index),
@@ -51,8 +44,7 @@ export default async function handler(
                       Address.fromBech32(utxo.address),
                       BlockfrostV0.parseValue(utxo.amount),
                       Datum.inline(ListData.fromCbor(hexToBytes(utxo.inline_datum)))
-                      //Datum.inline(new ByteArray(utxo.inline_datum))
-                    )
+                      )
                 );
                 return utxoReturn;
             }
@@ -64,7 +56,6 @@ export default async function handler(
     try {
         // TODO - sanitize inputs
         const utxo = await getEscrowUtxo(req.body.addr, req.body.orderId)
-        console.log("getEscrowUtxo: utxo", utxo.toCbor());
         res.status(200).send(utxo.toCbor());
     }
     catch (err) {

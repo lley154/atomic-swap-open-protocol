@@ -93,7 +93,6 @@ class SwapInfo {
     }
 }
 
-
 /**
  * EscrowInfo class to capture all of the script parameters related to the escrow
  */

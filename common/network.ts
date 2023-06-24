@@ -1,12 +1,10 @@
 import axios from 'axios';
-
 import { Address,
          bytesToHex,
          MintingPolicyHash,
          Tx,
          UTxO, 
          } from "@hyperionbt/helios";
-
 import { SwapInfo,
          EscrowInfo } from '../common/types';
 
@@ -56,46 +54,6 @@ async function getNetworkParams(network: string) {
     }
 }
 
-
-
-/*
-const getSwapUtxo = async (swapValidatorAddr : Address, beaconMPH : MintingPolicyHash) : Promise<UTxO> => {
-
-    const apiKey : string = process.env.NEXT_PUBLIC_BLOCKFROST_API_KEY as string;
-
-    const API = new BlockFrostAPI({
-        projectId: apiKey
-    });
-
-    const address = await API.addressesUtxosAsset( swapValidatorAddr.toBech32(),
-                                                   beaconMPH.hex + swapValidatorAddr.validatorHash.hex
-                                                 );
-    console.log("address", address);
-
-    let valueAda = new Value(BigInt(address[0].amount[0].quantity));
-    for (const asset of address[0].amount) {
-        const mph = asset.unit.substring(0,57);
-        const tn = textToBytes(asset.unit.substring(58));
-        const qty = asset.quantity;
-        const valueToken = new Value(BigInt(0), new Assets([[mph, [[tn, BigInt(qty)]]]]));
-        valueAda.add(valueToken);
-    }
-    console.log("value", valueAda);
-
-    const utxo = new UTxO(
-        TxId.fromHex(address[0].tx_hash),
-        BigInt(address[0].output_index),
-        new TxOutput(
-          swapValidatorAddr,
-          valueAda,
-          Datum.inline(ListData.fromCbor(textToBytes(address[0].inline_datum!)))
-        )
-    );
-    return utxo;
-}
-*/
-
-
 const getSwapUtxo = async (swapValidatorAddr : Address, beaconMPH : MintingPolicyHash) : Promise<UTxO> => {
 
     const addr = swapValidatorAddr.toBech32();
@@ -129,8 +87,6 @@ const getSwapUtxo = async (swapValidatorAddr : Address, beaconMPH : MintingPolic
     }
   }  
 
-
-
 const getRefUtxo = async (refValidatorAddr : Address, userTokenTN : string) : Promise<UTxO> => {
 
     const addr = refValidatorAddr.toBech32();
@@ -162,7 +118,6 @@ const getRefUtxo = async (refValidatorAddr : Address, userTokenTN : string) : Pr
         throw err;
     }
   }  
-
 
 const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promise<UTxO> => {
 
@@ -215,13 +170,10 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
             }
         })
         if(res.status == 200){
-            console.log("res.data:" , res.data);
-
-           return res.data;
-
+            return res.data;
         } else {
-          console.error("getSwaps Error: ", res);
-          throw res.data;
+            console.error("getSwaps Error: ", res);
+            throw res.data;
         }   
     }
     catch (err) {
@@ -229,7 +181,6 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
         throw err;
     }
   }
-
 
   const getEscrows = async (addr : Address) : Promise<string[] | undefined> => {
 
@@ -250,21 +201,18 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
             }
         })
         if(res.status == 200){
-            console.log("res.data:" , res.data);
-
-           return res.data;
+            return res.data;
 
         } else {
-          console.error("getEscrows Error: ", res.data);
-          throw res.data;
+            console.error("getEscrows Error: ", res.data);
+            throw res.data;
         }   
     }
     catch (err) {
-        console.error("getEscrows Failed: ", err);
+        console.error("getEscrows Failed");
         throw err;
     }
   }
-
 
   const getSwapInfo = async (asset : string) : Promise<SwapInfo> => {
 
@@ -285,13 +233,11 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
             }
         })
         if(res.status == 200){
-            console.log("res.data:" , res.data);
-
-           return res.data;
+            return res.data;
 
         } else {
-          console.error("getSwapInfo Error: ", res);
-          throw res.data;
+            console.error("getSwapInfo Error: ", res);
+            throw res.data;
         }   
     }
     catch (err) {
@@ -321,16 +267,13 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
             }
         })
         if(res.status == 200){
-            console.log("res.data:" , res.data);
-
-           return res.data;
+            return res.data;
 
         } else {
-          throw console.error("getEscrowInfo Error: ", res);
+            throw console.error("getEscrowInfo Error: ", res);
         }   
     }
     catch (err) {
-        //console.error("getEscrowInfo Failed: ", err);
         throw err;
     }
   }
@@ -352,8 +295,8 @@ const signSubmitTx = async (tx: Tx) : Promise<string> => {
         if(res.status == 200){
             return res.data;
         } else {
-          console.error("signSumitTx API Error: ", res);
-          throw res.data;
+            console.error("signSumitTx API Error: ", res);
+            throw res.data;
         }   
     }
     catch (err) {
