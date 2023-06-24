@@ -36,14 +36,10 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             userTokenVal : Value = Value::new(userTokenAssetclass, 1);
             refTokenVal : Value = Value::new(userTokenAssetclass, 1);
             tnLength : Int = TOKEN_NAME.length + 1;
-            //timestampBA: ByteArray = red.tnBA.slice(11,24);
             timestampBA: ByteArray = red.tnBA.slice(tnLength,red.tnBA.length);
             timestamp: Time = Time::new(Int::parse(timestampBA.decode_utf8()));
-            print("timestamp: " + timestamp.show());
-            print("tx.time_range: " + tx.time_range.show());
 
             // Check that timestamp is within valid tx
-            //tx.time_range.contains(timestamp).trace("UTP1: ") && -- not working
             (!tx.time_range.is_before(timestamp)).trace("UTP1: ") &&
             (!tx.time_range.is_after(timestamp)).trace("UTP2: ") &&
             tx.is_signed_by(ownerPKH).trace("UTP3: ") &&
@@ -54,8 +50,6 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     refTokenDatum: Inline => { 
                         refTokenData:TokenDatum = TokenDatum::from_data(refTokenDatum.data);
                         userPkh: PubKeyHash = PubKeyHash::new(refTokenData.userPkhBA);
-                        print("userPkh: " + userPkh.show());
-                
                         tx.is_signed_by(userPkh).trace("UTP5: ") 
                     },
                     else => false.trace("UTP6:") // no reference inline datum

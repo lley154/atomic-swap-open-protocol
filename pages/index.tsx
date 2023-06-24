@@ -55,6 +55,7 @@ import {
   TxOutput,
   Tx,
   WalletHelper,
+  Program,
   PubKeyHash,
   MintingPolicyHash,
   UTxO,
@@ -338,7 +339,10 @@ const Home: NextPage = (props : any) => {
       userTokenPolicyProgram.parameters = {["MIN_ADA"] : minAda};
       const userTokenPolicyCompiledProgram = userTokenPolicyProgram.compile(optimize);  
       const userTokenMPH = userTokenPolicyCompiledProgram.mintingPolicyHash;
-      //console.log("IR: ", userTokenPolicyCompiledProgram.toString());
+      console.log("IR: ", userTokenPolicyCompiledProgram.toString());
+      //console.log("IR: ", userTokenPolicyProgram.prettyIR());
+      //const test = userTokenPolicyProgram as Program;
+      //console.log("IR: ", test.prettyIR())
 
       // Get the UTxOs in User wallet
       const utxos = await walletHelper.pickUtxos(minUTXOVal);

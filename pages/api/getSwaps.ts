@@ -14,8 +14,9 @@ export default async function handler(
         });
     
         const assets = await API.assetsPolicyByIdAll(mph);
+        const liveAssets = assets.filter(assets => BigInt(assets.quantity) > 0);
 
-       return assets;
+       return liveAssets;
     }
 
     try {

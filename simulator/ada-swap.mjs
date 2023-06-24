@@ -1,23 +1,23 @@
 import {
   Assets, 
   MintingPolicyHash,
-  Value,
   textToBytes, 
+  Value
 } from "@hyperionbt/helios";
 
 import {
-    owner,
     assetSwap,
     beaconMPH,
     closeSwap,
-    openSwap,
     getMphTnQty,
     mintUserTokens,
     network,
+    openSwap,
+    owner,
     SwapConfig,
     showWalletUTXOs,
-    version,
     updateSwap,
+    version,
 } from "./swap-simulator.mjs"
 
 const minAda = BigInt(3_500_000);
