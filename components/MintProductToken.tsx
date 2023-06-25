@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const mintProductToken = ({ onMintProductToken } : any) => {
+const MintProductToken = ({ onMintProductToken } : any) => {
 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -74,4 +74,4 @@ const mintProductToken = ({ onMintProductToken } : any) => {
     )
 }
 
-export default mintProductToken
+export default MintProductToken

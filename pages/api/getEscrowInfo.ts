@@ -25,7 +25,7 @@ export default async function handler(
 
         let askedAssetMPH = "";
         let askedAssetTN = "";
-        let askedAssetPrice = 0;
+        let askedAssetQty = 0;
         let offeredAssetMPH = "";
         let offeredAssetTN = "";
         let offeredAssetQty = 0;
@@ -47,7 +47,7 @@ export default async function handler(
                 const offeredAssetValue = Value.fromUplcData(datum.list[4]);
         
                 if (askedAssetValue.lovelace > 0) {
-                    askedAssetPrice = Number(askedAssetValue.lovelace);
+                    askedAssetQty = Number(askedAssetValue.lovelace);
                 } else {
                     const askedAsset = askedAssetValue.assets.dump();
                     Object.entries(askedAsset).forEach(([keyMph, valueMph], index, arr) => {
@@ -55,7 +55,7 @@ export default async function handler(
                             
                             askedAssetMPH = keyMph;
                             askedAssetTN = Buffer.from(tokenName, "hex").toString("utf8");
-                            askedAssetPrice = tokenQty as number;
+                            askedAssetQty = tokenQty as number;
         
                             arr.length = index + 1; // there will only be 1 token, so break
                         })
@@ -119,7 +119,7 @@ export default async function handler(
             escrowHash,
             askedAssetMPH,
             askedAssetTN,
-            askedAssetPrice,
+            askedAssetQty,
             offeredAssetMPH,
             offeredAssetTN,
             offeredAssetQty,

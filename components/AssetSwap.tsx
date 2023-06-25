@@ -1,6 +1,6 @@
 import { ChangeEvent, useState } from 'react'
 
-const assetSwap = ({ onAssetSwap, swapInfo } : any) => {
+const AssetSwap = ({ onAssetSwap, swapInfo } : any) => {
 
     const [buyQty, setBuyQty] = useState('');
     let amtToBuy = Number(buyQty) *  Number(swapInfo.askedAssetPrice);
@@ -50,4 +50,4 @@ const assetSwap = ({ onAssetSwap, swapInfo } : any) => {
     )
 }
 
-export default assetSwap
+export default AssetSwap

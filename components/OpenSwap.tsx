@@ -1,6 +1,6 @@
 import { ChangeEvent, useState } from 'react'
 
-const openSwap = ({ onOpenSwap } : any) => {
+const OpenSwap = ({ onOpenSwap } : any) => {
 
     const [askedMPH, setAskedMPH] = useState('');
     const [askedTN, setAskedTN] = useState('');
@@ -112,4 +112,4 @@ const openSwap = ({ onOpenSwap } : any) => {
     )
 }
 
-export default openSwap
+export default OpenSwap

@@ -16,7 +16,8 @@ const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 const PRODUCT_ID: ByteArray = #
 
 
-func main(_, _, _) -> Bool {
+func main(_, _, ctx: ScriptContext) -> Bool {
     // Always fail, there is no spending of assets allowed
-    false.trace("PTV1: ") 
+    ctx.tx.is_signed_by(ownerPKH).trace("PTV1: ")
+    && false.trace("PTV2: ") 
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const updateSwap = ({ onUpdateSwap } : any) => {
+const UpdateSwap = ({ onUpdateSwap } : any) => {
 
     const [askedQty, setAskedQty] = useState('');
     const [offeredQty, setOfferedQty] = useState('');
@@ -41,4 +41,4 @@ const updateSwap = ({ onUpdateSwap } : any) => {
     )
 }
 
-export default updateSwap
+export default UpdateSwap

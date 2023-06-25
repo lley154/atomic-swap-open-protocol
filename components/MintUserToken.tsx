@@ -1,13 +1,13 @@
 import { useState } from 'react'
 
-const mintUserToken = ({ onMintUserToken } : any) => {
+const MintUserToken = ({ onMintUserToken } : any) => {
 
-    const [address, setAddress] = useState('');
+    const [info, setInfo] = useState('');
 
     const onSubmit = (e : any) => {
         
         e.preventDefault() // prevent full page refresh
-        onMintUserToken([address])
+        onMintUserToken([info])
     }
 
     return (
@@ -18,9 +18,9 @@ const mintUserToken = ({ onMintUserToken } : any) => {
                 <hr></hr>
                 Enter User Info
                 <br></br>
-                <input name='address' type='text' id='address' placeholder='User Info' 
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                <input name='info' type='text' id='info' placeholder='User Info' 
+                value={info}
+                onChange={(e) => setInfo(e.target.value)}
                 />
                 <p></p>                 
             </div>
@@ -30,4 +30,4 @@ const mintUserToken = ({ onMintUserToken } : any) => {
     )
 }
 
-export default mintUserToken
+export default MintUserToken

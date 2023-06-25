@@ -64,8 +64,8 @@ declare global {
 config.AUTO_SET_VALIDITY_RANGE = false;
 
 // Global variables
-const version = "3.7";
-const optimize = false;
+const version = "3.8";
+const optimize = true;
 const network = "preprod";
 const userTokenName = "UT";
 const minAda : bigint = BigInt(3_500_000); // minimum lovelace needed when sending tokens
@@ -116,34 +116,47 @@ const Home: NextPage = (props : any) => {
   
   useEffect(() => {
     const checkWallet = async () => {
-      setWalletIsEnabled(await checkIfWalletFound());
+      //const walletEnabled = await checkIfWalletFound();
+      let walletFound = false;
+      if (whichWalletSelected === "nami") {
+          walletFound = !!window?.cardano?.nami;
+      } else if (whichWalletSelected === "eternl") {
+          walletFound = !!window?.cardano?.eternl;
+      }
+      setWalletIsEnabled(walletFound);
     }
     checkWallet();
   }, [whichWalletSelected]);
 
+
   useEffect(() => {
     const enableSelectedWallet = async () => {
-      if (walletIsEnabled) {
-        await enableWallet();
-      }
+      await enableWallet(whichWalletSelected!);
     }
-    enableSelectedWallet();
-  }, [walletIsEnabled]);
+    if (whichWalletSelected && walletIsEnabled) {
+      enableSelectedWallet();
+    }
+  }, [walletIsEnabled, whichWalletSelected]);
+
 
   useEffect(() => {
     const updateWalletInfo = async () => {
         if (walletIsEnabled) {
-            const _pkh = await getPkh() as string;
-            const _balance = await getBalance() as [];
-            setWalletInfo({
-              ...walletInfo,
-              pkh : _pkh,
-              balance : _balance
-            });
+            if (walletAPI) {
+              const wallet = new WalletHelper(walletAPI);
+              setWalletHelper(wallet);
+              const changeAddr = await wallet.changeAddress;
+              const walletBalance = await getBalance(wallet) as [];
+              setWalletInfo({
+                ...walletInfo,
+                pkh : changeAddr.pubKeyHash.hex,
+                balance : walletBalance
+              });
+          }
         }
     }
     updateWalletInfo();
-  }, [walletAPI]);
+  }, [walletAPI, walletInfo, walletIsEnabled]);
 
   useEffect(() => {
     const updateSwapList = async () => {
@@ -152,11 +165,10 @@ const Home: NextPage = (props : any) => {
         }
     }
     updateSwapList();
-  }, [walletAPI]);
+  }, [walletAPI, props.noSwaps, props.swaps]);
 
   useEffect(() => {
       const updateEscrowList = async () => {
-      //const changeAddr = await walletHelper.changeAddress;
 
       // Create the escrow script
       const escrowProgram = new EscrowValidator();
@@ -175,10 +187,12 @@ const Home: NextPage = (props : any) => {
         console.error("no escrows found");
       }
     }
-    if (walletAPI) {  // avoid rendering on first render
-      updateEscrowList();
+    if (walletAPI && swapInfo) {  // avoid rendering on first render
+      if (swapInfo.escrowEnabled) {
+        updateEscrowList();
+      }  
     }
-  }, [swapInfo]);
+  }, [swapInfo, walletAPI]);
 
   // user selects what wallet to connect to
   const handleWalletSelect = (obj : any) => {
@@ -186,6 +200,7 @@ const Home: NextPage = (props : any) => {
     setWhichWalletSelected(whichWalletSelected);
   }
 
+  /*
   const checkIfWalletFound = async () => {
 
     let walletFound = false;
@@ -198,41 +213,43 @@ const Home: NextPage = (props : any) => {
     }
     return walletFound;
   }
+  */
 
-  const enableWallet = async () => {
+  const enableWallet = async (walletChoice : string) => {
 
       try {
-        const walletChoice = whichWalletSelected;
+        //const walletChoice = whichWalletSelected;
         if (walletChoice === "nami") {
             const handle: Cip30Handle = await window.cardano.nami.enable();
             const walletAPI = new Cip30Wallet(handle);
             const walletHelper = new WalletHelper(walletAPI);
-            setWalletHelper(walletHelper);
             setWalletAPI(walletAPI);
+            setWalletHelper(walletHelper);
 
           } else if (walletChoice === "eternl") {
             const handle: Cip30Handle = await window.cardano.eternl.enable();
             const walletAPI = new Cip30Wallet(handle);
             const walletHelper = new WalletHelper(walletAPI);
-            setWalletHelper(walletHelper);
             setWalletAPI(walletAPI);
+            setWalletHelper(walletHelper);
           }
     } catch (err) {
         console.error('enableWallet error', err);
     }
   }
-
+/*
   const getPkh = async () => {
 
     const changeAddr = await walletHelper.changeAddress;
     return changeAddr.pubKeyHash.hex;
   }
-
-  const getBalance = async () => {
+*/
+  const getBalance = async (wallet : WalletHelper) => {
 
     let walletBalance = [];
     try {
-        const balanceAmountValue  = await walletHelper.calcBalance();
+        //const balanceAmountValue  = await walletHelper.calcBalance();
+        const balanceAmountValue  = await wallet.calcBalance();
         const adaAmount = BigInt(balanceAmountValue.lovelace);
         walletBalance.push({ mph: "", tn: "lovelace", qty: adaAmount.toLocaleString()});
         const values = balanceAmountValue.assets.dump();
@@ -271,9 +288,12 @@ const Home: NextPage = (props : any) => {
   const mintUserToken = async (params : any) => {
 
     setIsLoading(true);
+    const userInfo = (params[0] as string).trim();
+    // Do something with user info if needed
+    console.log("userInfo: ", userInfo);
 
     // Re-enable wallet API since wallet account may have been changed
-    await enableWallet();
+    await enableWallet(whichWalletSelected!);
 
     const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));
 
@@ -399,15 +419,15 @@ const Home: NextPage = (props : any) => {
     setIsLoading(true);
 
     // Re-enable wallet API since wallet account may have been changed
-    await enableWallet();
+    await enableWallet(whichWalletSelected!);
 
     const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));
 
     try {
-      const productName = params[0] as string;
-      const productDescription = params[1] as string;
-      const productImg = params[2] as string;
-      const productId = params[3] as string;
+      const productName = (params[0] as string).trim();
+      const productDescription = (params[1] as string).trim();
+      const productImg = (params[2] as string).trim();
+      const productId = (params[3] as string).trim();
       const qty = params[4] as string;
       
       // Get change address & network params
@@ -544,17 +564,17 @@ const Home: NextPage = (props : any) => {
     
     try {
 
-      const askedMPH = params[0] as string;
-      const askedTN = textToBytes(params[1] as string);
+      const askedMPH = (params[0] as string).trim();
+      const askedTN = textToBytes((params[1] as string).trim());
       const askedQty = params[2] as string;
-      const offeredMPH = params[3] as string;
-      const offeredTN = textToBytes(params[4] as string);
+      const offeredMPH = (params[3] as string).trim();
+      const offeredTN = textToBytes((params[4] as string).trim());
       const offeredQty = params[5] as string;
       const escrowEnabled = params[6] as boolean;
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));    
 
       // Re-enable wallet API since wallet account may have been changed
-      await enableWallet();
+      await enableWallet(whichWalletSelected!);
 
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
@@ -783,7 +803,7 @@ const updateSwap = async (params : any) => {
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));    
 
       // Re-enable wallet API since wallet account may have been changed
-      await enableWallet();
+      await enableWallet(whichWalletSelected!);
 
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
@@ -968,7 +988,7 @@ const assetSwap = async (params : any) => {
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt + serviceFee));    
 
       // Re-enable wallet API since wallet account may have been changed
-      await enableWallet();
+      await enableWallet(whichWalletSelected!);
 
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
@@ -1314,11 +1334,11 @@ const approveEscrow = async (params : any) => {
 
   try {
       setIsLoading(true);
-      const orderId = params as string;
+      const orderId = (params as string).trim();
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt + serviceFee));    
 
       // Re-enable wallet API since wallet account may have been changed
-      await enableWallet();
+      await enableWallet(whichWalletSelected!);
 
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
@@ -1392,12 +1412,12 @@ const approveEscrow = async (params : any) => {
  
       // Sign tx with buyer and seller signatures
       alert('Sign with buyer wallet');
-      await enableWallet();
+      await enableWallet(whichWalletSelected!);
       const buyerSignatures = await walletAPI.signTx(tx);
       tx.addSignatures(buyerSignatures);
 
       alert('Sign with seller wallet');
-      await enableWallet();
+      await enableWallet(whichWalletSelected!);
       const sellerSignatures = await walletAPI.signTx(tx);
       tx.addSignatures(sellerSignatures);
     
@@ -1428,7 +1448,7 @@ const closeSwap = async () => {
       const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));    
 
       // Re-enable wallet API since wallet account may have been changed
-      await enableWallet();
+      await enableWallet(whichWalletSelected!);
 
       // Get change address
       const changeAddr = await walletHelper.changeAddress;
@@ -1621,15 +1641,14 @@ const closeSwap = async () => {
             <p>TxId &nbsp;&nbsp;<a href={"https://"+network+".cexplorer.io/tx/" + tx.txId} target="_blank" rel="noopener noreferrer" >{tx.txId}</a></p>
             <p>Please wait until the transaction is confirmed on the blockchain and reload this page before doing another transaction</p>
           </div>}
-          {walletIsEnabled && !tx.txId && swapList && <div className={styles.border}><SwapList swapList={swapList} onSwapInfo={updateSwapDetails}/></div>}
-          {walletIsEnabled && !tx.txId && swapInfo && <div className={styles.border}><SwapDetails swapInfo={swapInfo} onUpdateSwap={updateSwap} onCloseSwap={closeSwap}/></div>}
-          {walletIsEnabled && !tx.txId && escrowList && <div className={styles.border}><EscrowList escrowList={escrowList} onEscrowInfo={updateEscrowDetails}/></div>}
-          {walletIsEnabled && !tx.txId && escrowInfo && <div className={styles.border}><EscrowDetails escrowInfo={escrowInfo} onApproveEscrow={approveEscrow}/></div>}
-          {walletIsEnabled && !tx.txId && swapInfo && <div className={styles.border}><AssetSwap onAssetSwap={assetSwap} swapInfo={swapInfo}/></div>}
-          {walletIsEnabled && !tx.txId && <div className={styles.border}><MintUserToken onMintUserToken={mintUserToken}/></div>}
-          {walletIsEnabled && !tx.txId && <div className={styles.border}><MintProductToken onMintProductToken={mintProductToken}/></div>}
-          {walletIsEnabled && !tx.txId && <div className={styles.border}><OpenSwap onOpenSwap={openSwap}/></div>}
-          
+          {walletIsEnabled && !tx.txId && !isLoading && swapList && <div className={styles.border}><SwapList swapList={swapList} onSwapInfo={updateSwapDetails}/></div>}
+          {walletIsEnabled && !tx.txId && !isLoading && swapInfo && <div className={styles.border}><SwapDetails swapInfo={swapInfo} onUpdateSwap={updateSwap} onCloseSwap={closeSwap}/></div>}
+          {walletIsEnabled && !tx.txId && !isLoading && escrowList && <div className={styles.border}><EscrowList escrowList={escrowList} onEscrowInfo={updateEscrowDetails}/></div>}
+          {walletIsEnabled && !tx.txId && !isLoading && escrowInfo && <div className={styles.border}><EscrowDetails escrowInfo={escrowInfo} onApproveEscrow={approveEscrow}/></div>}
+          {walletIsEnabled && !tx.txId && !isLoading && swapInfo && <div className={styles.border}><AssetSwap onAssetSwap={assetSwap} swapInfo={swapInfo}/></div>}
+          {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><MintUserToken onMintUserToken={mintUserToken}/></div>}
+          {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><MintProductToken onMintProductToken={mintProductToken}/></div>}
+          {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><OpenSwap onOpenSwap={openSwap}/></div>}
       </main>
 
       <footer className={styles.footer}>
