@@ -705,7 +705,7 @@ const Home: NextPage = (props : any) => {
 
       // Add app wallet pkh as a signer which is required to mint beacon
       tx.addSigner(ownerPKH);
-      tx.addSigner(changeAddr.pubKeyHash);
+      //tx.addSigner(changeAddr.pubKeyHash);
 
       tx.addMetadata(2000, {"map": [[beaconMPH.hex, {"map": [[beaconTN,
                 {

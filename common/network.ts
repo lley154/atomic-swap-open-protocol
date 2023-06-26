@@ -21,6 +21,15 @@ export {
     submitTx
 }
 
+const host = process.env.NEXT_PUBLIC_HOST as string;
+const port = process.env.NEXT_PUBLIC_PORT as string;
+const protocol = process.env.NEXT_PUBLIC_PROTOCOL as string;
+const baseURL = protocol + '://' + host + ':' + port;
+if (host === "" || port === "" || protocol == "") {
+    alert("Please make sure you host, port and protocol environment variables are set");
+    throw console.error("Please make sure you host, port and protocol environment variables are set");
+}
+
 async function getNetworkParams(network: string) {
 
     var networkParamsUrl;
@@ -66,6 +75,7 @@ const getSwapUtxo = async (swapValidatorAddr : Address, beaconMPH : MintingPolic
 
     try {
       let res = await axios({
+            baseURL: baseURL,
             url: api,
             data: payload,
             method: 'post',
@@ -98,6 +108,7 @@ const getRefUtxo = async (refValidatorAddr : Address, userTokenTN : string) : Pr
 
     try {
       let res = await axios({
+            baseURL: baseURL,
             url: api,
             data: payload,
             method: 'post',
@@ -130,6 +141,7 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
 
     try {
       let res = await axios({
+            baseURL: baseURL,
             url: api,
             data: payload,
             method: 'post',
@@ -160,7 +172,7 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
 
     try {
       let res = await axios({
-            baseURL: 'http://localhost:3000',
+            baseURL: baseURL,
             url: api,
             data: payload,
             method: 'post',
@@ -191,7 +203,7 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
 
     try {
       let res = await axios({
-            baseURL: 'http://localhost:3000',
+            baseURL: baseURL,
             url: api,
             data: payload,
             method: 'post',
@@ -223,7 +235,7 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
 
     try {
       let res = await axios({
-            baseURL: 'http://localhost:3000',
+            baseURL: baseURL,
             url: api,
             data: payload,
             method: 'post',
@@ -257,7 +269,7 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
 
     try {
       let res = await axios({
-            baseURL: 'http://localhost:3000',
+            baseURL: baseURL,
             url: api,
             data: payload,
             method: 'post',
@@ -284,6 +296,7 @@ const signSubmitTx = async (tx: Tx) : Promise<string> => {
   
     try {
       let res = await axios({
+            baseURL: baseURL,
             url: urlAPI,
             data: payload,
             method: 'post',
@@ -311,6 +324,7 @@ const submitTx = async (tx: Tx) : Promise<string> => {
   
     try {
       let res = await axios({
+            baseURL: baseURL,
             url: urlAPI,
             data: payload,
             method: 'post',
