@@ -25,10 +25,10 @@ To generated a root key and public key hash (PKH) you can do the following:
 cd init
 export ENTROPY="put in a 24 word seed phase in this quote"
 node ./generate-private-key.mjs
+cd ..
 ```
 This will output the following information that you can use for the environment variables above.
 ```
-atomic-swap-open-protocol/init$ node ./generate-private-key.mjs 
 ROOT_KEY=e875684...a254e6cb6754b3866a0ba
 OWNER_PKH=3a0c3...1bd2d766aa
 ADDRESS=addr_test1vq...ttkd2swwues
@@ -36,7 +36,6 @@ ADDRESS=addr_test1vq...ttkd2swwues
 
 #### Now run a dev instance
 ```
-cd ..
 source ~/.bashrc
 npm run dev
 ```
