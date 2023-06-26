@@ -3,6 +3,11 @@
 ### Video demo located [here](http://)
 ##
 ## Getting Started
+#### Make sure you are using a recent version of node
+```
+node --version
+v18.16.1
+```
 #### Checkout the code repository
 ```
 git clone https://github.com/lley154/atomic-swap-open-protocol.git
