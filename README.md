@@ -42,3 +42,8 @@ npm run dev
 ```
 #### By default, the application runs on port 3000, so open your browser and go to http://localhost:3000
 
+#### Install a browser wallet
+Currently only [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo) and [Eternl](https://chrome.google.com/webstore/detail/eternl/kmhcihpebfmpgmihbkipmjlmmioameka) are the browser extension wallets supported.  You will need to create 2 accounts, one for the seller and the other for the buyer.  By default, the preprod network is used but this a global variable in the main index.tsx file that can be changed.
+
+### Please Note: This is a demo client and not intended for production use
+
