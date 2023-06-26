@@ -1,4 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { BlockFrostAPI, BlockfrostServerError } from '@blockfrost/blockfrost-js';
 
 import {
     hexToBytes, 
@@ -13,11 +14,17 @@ export default async function handler(
     const submitTx = async (tx: Tx) : Promise<string> => {
 
       const payload = new Uint8Array(tx.toCbor());
-      const blockfrostAPI = process.env.NEXT_PUBLIC_BLOCKFROST_API as string;
-      const blockfrostUrl = blockfrostAPI + "/tx/submit";
+      //const blockfrostAPI = process.env.NEXT_PUBLIC_BLOCKFROST_API as string;
+      //const blockfrostUrl = blockfrostAPI + "/tx/submit";
       const apiKey : string = process.env.NEXT_PUBLIC_BLOCKFROST_API_KEY as string;
   
       try {
+        const client = new BlockFrostAPI({
+            projectId: apiKey,
+          });
+        const txHash = await client.txSubmit(payload);
+        return txHash;
+        /*
         let res = await axios({
               url: blockfrostUrl,
               data: payload,
@@ -34,6 +41,7 @@ export default async function handler(
             console.error("submitTx API Blockfrost Error: ", res.data);
             throw res.data;
           }   
+          */
       }
       catch (err) {
           console.error("submitTx API Failed: ", err);
@@ -42,7 +50,6 @@ export default async function handler(
     }
     
     try {
-        
         const txCbor = req.body;
         const tx = Tx.fromCbor(hexToBytes(txCbor));
         const txId = await submitTx(tx);
