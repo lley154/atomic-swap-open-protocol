@@ -24,6 +24,10 @@ The following envrionment variables need to be set in your ~/.bashrc file
 export NEXT_PUBLIC_ROOT_KEY=e875684...a254e6cb6754b3866a0ba
 export NEXT_PUBLIC_OWNER_PKH=3a0c3...1bd2d766aa
 export NEXT_PUBLIC_BLOCKFROST_API_KEY=get-your-key-at-blockfrost.io
+export NEXT_PUBLIC_HOST="localhost"
+export NEXT_PUBLIC_PORT="3000"
+export NEXT_PUBLIC_PROTOCOL="http"
+
 ```
 To generated a root key and public key hash (PKH) you can do the following:
 ```
