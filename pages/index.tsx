@@ -704,8 +704,11 @@ const Home: NextPage = (props : any) => {
       tx.validTo(after);
 
       // Add app wallet pkh as a signer which is required to mint beacon
-      tx.addSigner(ownerPKH);
+      //tx.addSigner(ownerPKH);
       //tx.addSigner(changeAddr.pubKeyHash);
+
+      tx.addSigner(changeAddr.pubKeyHash);
+      tx.addSigner(ownerPKH);
 
       tx.addMetadata(2000, {"map": [[beaconMPH.hex, {"map": [[beaconTN,
                 {
@@ -1531,7 +1534,9 @@ const closeSwap = async () => {
       tx.validTo(after);
 
       // Add seller wallet pkh as a signer which is required for closing swap
+      // and the owner for burning the beacon token
       tx.addSigner(changeAddr.pubKeyHash);
+      tx.addSigner(ownerPKH);
  
       tx.addMetadata(2000, {"map": [[swapInfo.beaconMPH, {"map": [[swapInfo.beaconTN,
         {
@@ -1570,7 +1575,7 @@ const closeSwap = async () => {
 
       // Sign tx with owner signature and submit tx
       try {
-        const txHash = await submitTx(tx);
+        const txHash = await signSubmitTx(tx);
         setIsLoading(false); 
         console.log("txHash", txHash);
         setTx({ txId: txHash });
