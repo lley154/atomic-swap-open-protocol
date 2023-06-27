@@ -11,7 +11,15 @@ const OWNER_PKH: ByteArray = #
 const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 
 
-func main(_, ctx: ScriptContext) -> Bool {
+func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     print("VERSION: " + VERSION.show());
-    ctx.tx.is_signed_by(ownerPKH).trace("BTP1: ")
+    redeemer.switch {
+        Mint => {
+            ctx.tx.is_signed_by(ownerPKH).trace("BTP1: ")
+        },
+        Burn => { 
+            true 
+        }
+    }
+    
 }

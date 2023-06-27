@@ -1534,9 +1534,7 @@ const closeSwap = async () => {
       tx.validTo(after);
 
       // Add seller wallet pkh as a signer which is required for closing swap
-      // and the owner for burning the beacon token
       tx.addSigner(changeAddr.pubKeyHash);
-      tx.addSigner(ownerPKH);
  
       tx.addMetadata(2000, {"map": [[swapInfo.beaconMPH, {"map": [[swapInfo.beaconTN,
         {
@@ -1573,9 +1571,8 @@ const closeSwap = async () => {
 
       console.log("Submitting transaction...");
 
-      // Sign tx with owner signature and submit tx
       try {
-        const txHash = await signSubmitTx(tx);
+        const txHash = await submitTx(tx);
         setIsLoading(false); 
         console.log("txHash", txHash);
         setTx({ txId: txHash });
