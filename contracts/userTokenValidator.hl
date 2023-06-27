@@ -19,6 +19,8 @@ const ownerPKH: PubKeyHash = PubKeyHash::new(OWNER_PKH)
 func main(_, _, ctx: ScriptContext) -> Bool {
     
     print("VERSION: " + VERSION.show());
-    ctx.tx.is_signed_by(userPKH).trace("UTV1: ") &&
+    // Not signed by user pkh is required to make sure the hash
+    // of the validator is unique for a user and owner pkh combination
+    !ctx.tx.is_signed_by(userPKH).trace("UTV1: ") &&
     ctx.tx.is_signed_by(ownerPKH).trace("UTV1: ")
 }
