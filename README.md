@@ -27,6 +27,7 @@ export NEXT_PUBLIC_BLOCKFROST_API_KEY=get-your-key-at-blockfrost.io
 export NEXT_PUBLIC_HOST="localhost"
 export NEXT_PUBLIC_PORT="3000"
 export NEXT_PUBLIC_PROTOCOL="http"
+export NEXT_PUBLIC_ENV="dev"
 
 ```
 To generated a root key and public key hash (PKH) you can do the following:
