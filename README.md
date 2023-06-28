@@ -40,7 +40,6 @@ This will output the following information that you can use for the environment 
 ```
 ROOT_KEY=e875684...a254e6cb6754b3866a0ba
 OWNER_PKH=3a0c3...1bd2d766aa
-ADDRESS=addr_test1vq...ttkd2swwues
 ```
 
 #### Now run a dev instance
