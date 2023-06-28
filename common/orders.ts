@@ -46,7 +46,6 @@ export default async function calcOrderDetails (utxo : UTxO,
    var askedAssetTN;
    var askedAssetQty;
 
-
    // Check if the askedAsset is lovelace
    if (askedAssetMP.length == 0) {
        askedAssetlovelace = true;
@@ -95,7 +94,7 @@ export default async function calcOrderDetails (utxo : UTxO,
        swapAskedAssetQty = swapAskedAssetValue.assets.get(swapAskedAssetMPH, swapAskedAssetTN);
    }
 
-   // If asked assets is not lovelace and asked and swap assets MPHs & TNs exist
+   // If asked assets is not lovelace and asked & swap assets MPHs & TNs exist
    if (!askedAssetlovelace && 
         askedAssetMPH && 
         swapAskedAssetMPH &&
@@ -103,7 +102,8 @@ export default async function calcOrderDetails (utxo : UTxO,
         swapAskedAssetTN) {
         // Check that the askedAssets match
         if (!(askedAssetMPH.hex === swapAskedAssetMPH.hex &&
-            bytesToHex(askedAssetTN) === bytesToHex(swapAskedAssetTN))) {
+            bytesToHex(askedAssetTN.bytes) === bytesToHex(swapAskedAssetTN.bytes))) {
+            alert("Swap assets do not match");
             throw console.error("calcQtyToBuy: swap assets don't match")
         }
     }
@@ -120,6 +120,7 @@ export default async function calcOrderDetails (utxo : UTxO,
    assert(price > 0); // price must be greater than zero
    const orderAmt = spendAmt / price;  
    if (orderAmt < 1) {
+       alert("Not enough funds to cover the swap")
        throw console.error("calcRemainder: insufficient funds")
    } else if (diff >= 0) { 
        qtyToBuy = qty;  // can purchase all available qty
@@ -144,15 +145,20 @@ export default async function calcOrderDetails (utxo : UTxO,
    } 
    
    // Create the updated offeredAsset
-   const updatedOfferedAsset = new Assets();
+   //const updatedOfferedAsset = new Assets();
    var updatedOfferAssetValue;
    if (!offeredAssetlovelace && offeredAssetMPH && offeredAssetTN) {
-        updatedOfferedAsset.addComponent(
-            offeredAssetMPH,
-            offeredAssetTN,
-            qtyRemainder
-        );
-        updatedOfferAssetValue = new Value(BigInt(0), updatedOfferedAsset);
+        // Commenting this out for now since Asset.addComponent() will auto remove
+        // asset that has zero quantity
+        //updatedOfferedAsset.addComponent(
+        //    offeredAssetMPH,
+        //    offeredAssetTN,
+        //    qtyRemainder
+        //);
+        //updatedOfferAssetValue = new Value(BigInt(0), updatedOfferedAsset);
+        const offeredToken : [number[], bigint][] = [[offeredAssetTN.bytes, qtyRemainder]];
+        const offeredAsset = new Assets([[offeredAssetMPH, offeredToken]]);
+        updatedOfferAssetValue = new Value(BigInt(0), offeredAsset);
     
    } else {
         updatedOfferAssetValue = new Value(qtyRemainder);

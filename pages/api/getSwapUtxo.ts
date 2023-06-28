@@ -24,7 +24,9 @@ export default async function handler(
             projectId: apiKey
         });
 
+        console.log("unit: ", unit);
         const address = await API.addressesUtxosAsset(swapValidatorAddr, unit);
+        console.log("address: ", address);
                                                       
         if (address.length != 1) {
             throw console.error("getSwapUtxo: incorrect amount of swap utxos");

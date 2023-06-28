@@ -62,7 +62,7 @@ declare global {
 config.AUTO_SET_VALIDITY_RANGE = false;
 
 // Global variables
-const version = "3.8";
+const version = "4.0";
 const optimize = true;
 const network = "preprod";
 const userTokenName = "UT";
@@ -400,6 +400,12 @@ const Home: NextPage = (props : any) => {
       const productImg = (params[2] as string).trim();
       const productId = (params[3] as string).trim();
       const qty = params[4] as string;
+
+      if (Number(qty) < 1) {
+        alert("Product quantity cannot be less than 1");
+        setIsLoading(false);
+        return;
+      }
       
       // Get change address & network params
       const changeAddr = await walletHelper.changeAddress;
@@ -539,7 +545,20 @@ const Home: NextPage = (props : any) => {
       const offeredTN = textToBytes((params[4] as string).trim());
       const offeredQty = params[5] as string;
       const escrowEnabled = params[6] as boolean;
-      const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));    
+      const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));
+      
+      if (askedMPH === "" && (BigInt(askedQty) < BigInt(minAda)) ||
+          offeredMPH === "" && (BigInt(offeredQty) < BigInt(minAda))) {
+        alert("Asked or Offered asset price cannot be less than the minimum Ada of " + minAda.toString());
+        setIsLoading(false);
+        return;
+      }
+      
+      if (BigInt(offeredQty) < 1 || BigInt(askedQty) < 1) {
+        alert("Asked or Offered asset quantity cannot be less than 1");
+        setIsLoading(false);
+        return;
+      }
 
       // Re-enable wallet API since wallet account may have been changed
       await enableWallet(whichWalletSelected!);
@@ -591,6 +610,7 @@ const Home: NextPage = (props : any) => {
         if (sellerTokenTN.length > 0) {
           sellerTokenName = sellerTokenTN.pop()!; // grab the first token name found
         } else {
+          alert("No user token found");
           throw console.error("No user token found");
         }
       }
@@ -704,9 +724,6 @@ const Home: NextPage = (props : any) => {
       tx.validTo(after);
 
       // Add app wallet pkh as a signer which is required to mint beacon
-      //tx.addSigner(ownerPKH);
-      //tx.addSigner(changeAddr.pubKeyHash);
-
       tx.addSigner(changeAddr.pubKeyHash);
       tx.addSigner(ownerPKH);
 
@@ -771,7 +788,20 @@ const updateSwap = async (params : any) => {
   try {
       const askedQty = params[0] as string;
       const offeredQty = params[1] as string;
-      const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));    
+      const minUTXOVal = new Value(BigInt(minAda + maxTxFee + minChangeAmt));  
+      
+      if (swapInfo.askedAssetMPH === "" && (BigInt(askedQty) < BigInt(minAda)) || 
+          swapInfo.offeredAssetMPH === "" && (BigInt(offeredQty) < BigInt(minAda))) {
+        alert("Asked or Offered price cannot be less than the minimum Ada of " + minAda.toString());
+        setIsLoading(false);
+        return;
+      }
+
+      if (BigInt(offeredQty) < 1 || BigInt(askedQty) < 1) {
+        alert("Asked or Offered quantity cannot be less than 1");
+        setIsLoading(false);
+        return;
+      }
 
       // Re-enable wallet API since wallet account may have been changed
       await enableWallet(whichWalletSelected!);
@@ -803,6 +833,12 @@ const updateSwap = async (params : any) => {
       swapProgram.parameters = {["DEPOSIT_ADA"] : swapInfo.depositAda};
       const swapCompiledProgram = swapProgram.compile(optimize);
       const swapValHash = swapCompiledProgram.validatorHash;
+
+      if (changeAddr.pubKeyHash.hex != swapInfo.sellerPKH) {
+        alert("Only the seller can update the swap");
+        setIsLoading(false);
+        return;
+      }
 
       // Now we are able to get the UTxOs in Seller wallet
       const utxos = await walletHelper.pickUtxos(minUTXOVal);
@@ -1043,8 +1079,7 @@ const assetSwap = async (params : any) => {
     const sellerRefTokenUtxo = await getRefTokenUTXO(swapInfo.sellerPKH, swapInfo.sellerTokenTN, swapInfo, optimize);
     tx.addRefInput(sellerRefTokenUtxo);
     
-    // Create the asked asset
-    // Construct the asked asset value
+    // Create the asked asset value
     var swapAskedAssetValue;
     if (swapInfo.askedAssetMPH === "") {
       swapAskedAssetValue = new Value(BigInt(buyQty));
@@ -1458,6 +1493,11 @@ const closeSwap = async () => {
       const swapCompiledProgram = swapProgram.compile(optimize);
       const swapValHash = swapCompiledProgram.validatorHash;
 
+      if (changeAddr.pubKeyHash.hex != swapInfo.sellerPKH) {
+        alert("Only the seller can close the swap");
+        setIsLoading(false);
+        return;
+      }
       // Now we are able to get the UTxOs in Seller wallet
       const utxos = await walletHelper.pickUtxos(minUTXOVal);
 

@@ -4,6 +4,8 @@ import { SwapInfo } from '../../common/types';
 
 import {
     hexToBytes,
+    bytesToHex,
+    bytesToText,
     ListData,
     Value } from "@hyperionbt/helios";
 
@@ -27,7 +29,6 @@ export default async function handler(
         const metaDataObj = JSON.parse((JSON.stringify(metaData)));
         const inlineDatum = utxo[0].inline_datum!;
         const datum = ListData.fromCbor(hexToBytes(inlineDatum));
-       
         const askedAssetValue =  Value.fromUplcData(datum.list[0]);
         const offeredAssetValue = Value.fromUplcData(datum.list[1]);
 
@@ -38,18 +39,13 @@ export default async function handler(
         if (askedAssetValue.lovelace > 0) {
             askedAssetPrice = Number(askedAssetValue.lovelace);
         } else {
-            const askedAsset = askedAssetValue.assets.dump();
-            Object.entries(askedAsset).forEach(([keyMph, valueMph], index, arr) => {
-                Object.entries(valueMph as {}).forEach(([tokenName, tokenQty], index, arr) => {
-                    
-                    askedAssetMPH = keyMph;
-                    askedAssetTN = Buffer.from(tokenName, "hex").toString("utf8");
-                    askedAssetPrice = tokenQty as number;
-
-                    arr.length = index + 1; // there will only be 1 token, so break
-                })
-                arr.length = index + 1; // there will only be 1 mph, so break
-            })
+            // There should only be one asked asset minting policy
+            const askedMPH = askedAssetValue.assets.mintingPolicies[0];
+            const askedTN = offeredAssetValue.assets.getTokenNames(askedMPH);
+            const askedTokens = offeredAssetValue.assets.getTokens(askedMPH);
+            askedAssetMPH = askedMPH.hex;
+            askedAssetTN = bytesToText(askedTN[0].bytes);
+            askedAssetPrice = Number(askedTokens[0][1]);
         }
 
         let offeredAssetMPH = "";
@@ -59,18 +55,21 @@ export default async function handler(
         if (offeredAssetValue.lovelace > 0) {
             offeredAssetQty = Number(offeredAssetValue.lovelace);
         } else {
-            const offeredAsset = offeredAssetValue.assets.dump();
-            Object.entries(offeredAsset).forEach(([keyMph, valueMph], index, arr) => {
-                Object.entries(valueMph as {}).forEach(([tokenName, tokenQty], index, arr) => {
-                    
-                    offeredAssetMPH = keyMph;
-                    offeredAssetTN  = Buffer.from(tokenName, "hex").toString("utf8");
-                    offeredAssetQty = tokenQty as number;
-
-                    arr.length = index + 1; // there will only be 1 token, so break
-                })
-                arr.length = index + 1; // there will only be 1 mph, so break
-            })
+            // There should only be one minting policy hash and token name as offered assets
+            const offeredMPH = offeredAssetValue.assets.mintingPolicies[0];
+            if (offeredMPH) {
+                const offeredTN = offeredAssetValue.assets.getTokenNames(offeredMPH);
+                const offeredTokens = offeredAssetValue.assets.getTokens(offeredMPH);
+                offeredAssetMPH = offeredMPH.hex;
+                offeredAssetTN = bytesToText(offeredTN[0].bytes);
+                offeredAssetQty = Number(offeredTokens[0][1]);
+            } else {
+                // If asset is zero qty then need to handle differently
+                // because when value is being created fromUplcData, zero qty assets
+                // are being removed :(
+                offeredAssetMPH = bytesToHex(datum.list[1].map[0][0].bytes);
+                offeredAssetTN = bytesToText(datum.list[1].map[0][1].map[0][0].bytes);
+            }
         }
 
         const mph = beacon.substring(0,56);

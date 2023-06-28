@@ -20,8 +20,6 @@ export { getEscrowDatumInfo,
          tokenCount,
          tokenNameCount }
 
-
-
 /**
  * Get the list of tokens names that match the minting policy
  * hash provided
@@ -37,7 +35,7 @@ const tokenNameCount = async (tokenMph: MintingPolicyHash, tn : string,  value: 
             if (mph.hex === tokenMph.hex) {
                 const tokenNames = value.assets.getTokenNames(mph);
                 for (const tokenName of tokenNames) {
-                    if (bytesToText(tokenName) === tn) {
+                    if (bytesToText(tokenName.bytes) === tn) {
                         count += 1;
                     }
                 }
@@ -60,9 +58,10 @@ const getTokenNames = async (tokenMph: MintingPolicyHash, utxos: UTxO[]): Promis
         const mphs = utxo.value.assets.mintingPolicies;
         for (const mph of mphs) {
             if (mph.hex == tokenMph.hex) {
+                
                 const tokenNames = utxo.value.assets.getTokenNames(mph);
                 for (const tokenName of tokenNames) {
-                    tn.push(bytesToText(tokenName));
+                    tn.push(bytesToText(tokenName.bytes));
                 }
             }
         }
