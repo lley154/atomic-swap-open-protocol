@@ -294,7 +294,7 @@ const getEscrowUtxo = async (escrowValAddr : Address, orderId : string) : Promis
 
 const signSubmitTx = async (tx: Tx) : Promise<string> => {
     const payload = bytesToHex(tx.toCbor());
-    const urlAPI = "/api/getSignature";
+    const urlAPI = "/api/signSubmitTx";
   
     try {
       let res = await axios({

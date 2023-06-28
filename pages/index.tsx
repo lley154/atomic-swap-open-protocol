@@ -100,6 +100,9 @@ export async function getServerSideProps() {
 
 const Home: NextPage = (props : any) => {
 
+  if (process.env.NEXT_PUBLIC_DISABLE === "true") {
+    return(<></>);
+  }
   const [escrowInfo, setEscrowInfo] = useState<undefined | any>(undefined);
   const [escrowList, setEscrowList] = useState<undefined | any>(undefined);
   const [isLoading, setIsLoading] = useState(false);
