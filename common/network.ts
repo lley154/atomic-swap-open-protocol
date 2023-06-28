@@ -26,8 +26,8 @@ const host = process.env.NEXT_PUBLIC_HOST as string;
 const port = env == "dev" ? process.env.NEXT_PUBLIC_PORT as string : "";
 const protocol = process.env.NEXT_PUBLIC_PROTOCOL as string;
 const baseURL = protocol + '://' + host + port;
-if (host === "" || port === "" || protocol == "") {
-    alert("Please make sure you host, port and protocol environment variables are set");
+if (host === "" || protocol == "") {
+    alert("Please make sure you host and protocol environment variables are set");
     throw console.error("Please make sure you host, port and protocol environment variables are set");
 }
 
