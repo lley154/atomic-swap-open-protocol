@@ -22,7 +22,7 @@ export {
 }
 
 const host = process.env.NEXT_PUBLIC_HOST as string;
-const port = process.env.NEXT_PUBLIC_PORT as string;
+const port = process.env.NEXT_PUBLIC_PORT ? process.env.NEXT_PUBLIC_PORT as string : "";
 const protocol = process.env.NEXT_PUBLIC_PROTOCOL as string;
 const baseURL = protocol + '://' + host + port;
 if (host === "" || port === "" || protocol == "") {
