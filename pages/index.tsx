@@ -100,9 +100,6 @@ export async function getServerSideProps() {
 
 const Home: NextPage = (props : any) => {
 
-  if (process.env.NEXT_PUBLIC_DISABLE === "true") {
-    return(<></>);
-  }
   const [escrowInfo, setEscrowInfo] = useState<undefined | any>(undefined);
   const [escrowList, setEscrowList] = useState<undefined | any>(undefined);
   const [isLoading, setIsLoading] = useState(false);
@@ -1629,53 +1626,56 @@ const closeSwap = async () => {
       throw console.error("Close Swap tx failed", err);
     }
   }
+  if (process.env.NEXT_PUBLIC_DISABLE === "true") {
+    return(<></>);
+  } else {
+    return (
+      <div className={styles.container}>
+        <Head>
+          <title>Atomic Swap Open Protocol</title>
+          <meta name="description" content="Atomic Swap Open Protocol" />
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
 
-  return (
-    <div className={styles.container}>
-      <Head>
-        <title>Atomic Swap Open Protocol</title>
-        <meta name="description" content="Atomic Swap Open Protocol" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+        <main className={styles.main}>
+          <h3 className={styles.title}>
+            Atomic Swap Open Protocol
+          </h3>
 
-      <main className={styles.main}>
-        <h3 className={styles.title}>
-          Atomic Swap Open Protocol
-        </h3>
+          <div className={styles.borderwallet}>
+              <p>
+                Connect to your wallet
+              </p>
+              <p className={styles.borderwallet}>
+                <input type="radio" id="nami" name="wallet" value="nami" onChange={handleWalletSelect}/>
+                  <label>Nami</label>
+              </p>
+              <p className={styles.borderwallet}>
+                  <input type="radio" id="eternl" name="wallet" value="eternl" onChange={handleWalletSelect}/>
+                  <label>Eternl</label>
+              </p>
+            </div>
+              {!tx.txId && walletIsEnabled && <div className={styles.border}><WalletInfo walletInfo={walletInfo}/></div>}
+              {isLoading && <LoadingSpinner />}
+              {tx.txId && <div className={styles.border}><b>Transaction Success!!!</b>
+              <p>TxId &nbsp;&nbsp;<a href={"https://"+network+".cexplorer.io/tx/" + tx.txId} target="_blank" rel="noopener noreferrer" >{tx.txId}</a></p>
+              <p>Please wait until the transaction is confirmed on the blockchain and reload this page before doing another transaction</p>
+            </div>}
+            {walletIsEnabled && !tx.txId && !isLoading && swapList && <div className={styles.border}><SwapList swapList={swapList} onSwapInfo={updateSwapDetails}/></div>}
+            {walletIsEnabled && !tx.txId && !isLoading && swapInfo && <div className={styles.border}><SwapDetails swapInfo={swapInfo} onUpdateSwap={updateSwap} onCloseSwap={closeSwap}/></div>}
+            {walletIsEnabled && !tx.txId && !isLoading && escrowList && <div className={styles.border}><EscrowList escrowList={escrowList} onEscrowInfo={updateEscrowDetails}/></div>}
+            {walletIsEnabled && !tx.txId && !isLoading && escrowInfo && <div className={styles.border}><EscrowDetails escrowInfo={escrowInfo} onApproveEscrow={approveEscrow}/></div>}
+            {walletIsEnabled && !tx.txId && !isLoading && swapInfo && <div className={styles.border}><AssetSwap onAssetSwap={assetSwap} swapInfo={swapInfo}/></div>}
+            {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><MintUserToken onMintUserToken={mintUserToken}/></div>}
+            {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><MintProductToken onMintProductToken={mintProductToken}/></div>}
+            {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><OpenSwap onOpenSwap={openSwap}/></div>}
+        </main>
 
-        <div className={styles.borderwallet}>
-            <p>
-              Connect to your wallet
-            </p>
-            <p className={styles.borderwallet}>
-              <input type="radio" id="nami" name="wallet" value="nami" onChange={handleWalletSelect}/>
-                <label>Nami</label>
-            </p>
-            <p className={styles.borderwallet}>
-                <input type="radio" id="eternl" name="wallet" value="eternl" onChange={handleWalletSelect}/>
-                <label>Eternl</label>
-            </p>
-          </div>
-            {!tx.txId && walletIsEnabled && <div className={styles.border}><WalletInfo walletInfo={walletInfo}/></div>}
-            {isLoading && <LoadingSpinner />}
-            {tx.txId && <div className={styles.border}><b>Transaction Success!!!</b>
-            <p>TxId &nbsp;&nbsp;<a href={"https://"+network+".cexplorer.io/tx/" + tx.txId} target="_blank" rel="noopener noreferrer" >{tx.txId}</a></p>
-            <p>Please wait until the transaction is confirmed on the blockchain and reload this page before doing another transaction</p>
-          </div>}
-          {walletIsEnabled && !tx.txId && !isLoading && swapList && <div className={styles.border}><SwapList swapList={swapList} onSwapInfo={updateSwapDetails}/></div>}
-          {walletIsEnabled && !tx.txId && !isLoading && swapInfo && <div className={styles.border}><SwapDetails swapInfo={swapInfo} onUpdateSwap={updateSwap} onCloseSwap={closeSwap}/></div>}
-          {walletIsEnabled && !tx.txId && !isLoading && escrowList && <div className={styles.border}><EscrowList escrowList={escrowList} onEscrowInfo={updateEscrowDetails}/></div>}
-          {walletIsEnabled && !tx.txId && !isLoading && escrowInfo && <div className={styles.border}><EscrowDetails escrowInfo={escrowInfo} onApproveEscrow={approveEscrow}/></div>}
-          {walletIsEnabled && !tx.txId && !isLoading && swapInfo && <div className={styles.border}><AssetSwap onAssetSwap={assetSwap} swapInfo={swapInfo}/></div>}
-          {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><MintUserToken onMintUserToken={mintUserToken}/></div>}
-          {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><MintProductToken onMintProductToken={mintProductToken}/></div>}
-          {walletIsEnabled && !tx.txId && !isLoading && <div className={styles.border}><OpenSwap onOpenSwap={openSwap}/></div>}
-      </main>
-
-      <footer className={styles.footer}>
-      </footer>
-    </div>
-  )
+        <footer className={styles.footer}>
+        </footer>
+      </div>
+    )
+  }
 }
 
 export default Home
