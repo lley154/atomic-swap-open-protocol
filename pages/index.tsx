@@ -1652,7 +1652,10 @@ const closeSwap = async () => {
               </p>
               <p className={styles.borderwallet}>
                   <input type="radio" id="eternl" name="wallet" value="eternl" onChange={handleWalletSelect}/>
-                  <label>Eternl</label>
+                  <label>Eternl *</label>
+              </p>
+              <p>
+                <label style={{ fontSize: '12px' }}>* You must enable single address mode in the Eternl account settings</label>
               </p>
             </div>
               {!tx.txId && walletIsEnabled && <div className={styles.border}><WalletInfo walletInfo={walletInfo}/></div>}
