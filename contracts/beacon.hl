@@ -15,11 +15,17 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     print("VERSION: " + VERSION.show());
     redeemer.switch {
         Mint => {
+            mph: MintingPolicyHash = ctx.get_current_minting_policy_hash();
+            ctx.tx.minted.get_policy(mph).all( (_, amount: Int) -> Bool {
+                    amount == 1
+                }).trace("BTP2: ") &&
             ctx.tx.is_signed_by(ownerPKH).trace("BTP1: ")
         },
         Burn => { 
-            true 
+            mph: MintingPolicyHash = ctx.get_current_minting_policy_hash();
+            ctx.tx.minted.get_policy(mph).all( (_, amount: Int) -> Bool {
+                    amount == -1
+                }).trace("BTP2: ") 
         }
     }
-    
 }

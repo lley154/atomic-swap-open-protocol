@@ -40,8 +40,9 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             timestamp: Time = Time::new(Int::parse(timestampBA.decode_utf8()));
 
             // Check that timestamp is within valid tx
-            (!tx.time_range.is_before(timestamp)).trace("UTP1: ") &&
-            (!tx.time_range.is_after(timestamp)).trace("UTP2: ") &&
+            //(!tx.time_range.is_before(timestamp)).trace("UTP1: ") &&
+            //(!tx.time_range.is_after(timestamp)).trace("UTP2: ") &&
+            tx.time_range.contains(timestamp) &&
             tx.is_signed_by(ownerPKH).trace("UTP3: ") &&
             (tx.minted == (userTokenVal + refTokenVal)).trace("UTP4: ") &&
             (if (txOutputs.length >= 2) {
@@ -59,7 +60,7 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             })
         },
         Burn => { 
-            true 
+            false.trace("UTP8:") // don't allow burning of user token
         }
     }
 }

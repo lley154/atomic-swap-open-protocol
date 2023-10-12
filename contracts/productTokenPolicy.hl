@@ -17,12 +17,20 @@ func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     
     redeemer.switch {
         Mint => {
-            ctx.tx.is_signed_by(sellerPKH).trace("PTP1.0: ") && 
-            ctx.tx.is_signed_by(ownerPKH).trace("PTP1.1: ")
+            mph: MintingPolicyHash = ctx.get_current_minting_policy_hash();
+            ctx.tx.minted.get_policy(mph).all( (_, amount: Int) -> Bool {
+                    amount > 0
+                }).trace("PTP1.0 ") &&
+            ctx.tx.is_signed_by(sellerPKH).trace("PTP1.1: ") && 
+            ctx.tx.is_signed_by(ownerPKH).trace("PTP1.2: ")
         },
         Burn => {
-            ctx.tx.is_signed_by(sellerPKH).trace("PTP1.2: ") && 
-            ctx.tx.is_signed_by(ownerPKH).trace("PTP1.3: ")
+            mph: MintingPolicyHash = ctx.get_current_minting_policy_hash();
+            ctx.tx.minted.get_policy(mph).all( (_, amount: Int) -> Bool {
+                    amount < 0
+                }).trace("PTP1.3: ") &&
+            ctx.tx.is_signed_by(sellerPKH).trace("PTP1.4: ") && 
+            ctx.tx.is_signed_by(ownerPKH).trace("PTP1.5: ")
         }
     }
 }
