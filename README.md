@@ -1,6 +1,6 @@
 # Atomic Swap Open Protocol
 ### Light Paper Located [here](https://github.com/lley154/atomic-swap-open-protocol/blob/main/docs/Atomic-Swap-Open-Protocol-1.0.pdf)
-### Video demo located [here](https://youtu.be/qy1gFzZeE3o)
+
 ##
 ## Getting Started
 #### Make sure you are using a recent version of node
